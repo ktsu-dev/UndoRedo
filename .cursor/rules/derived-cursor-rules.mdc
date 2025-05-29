@@ -24,4 +24,12 @@ This document outlines the rules, coding standards, workflow guidelines, and bes
 
 ## DEBUGGING
 
+When running tests, use the following commands:
+
+*   `dotnet restore` to restore dependencies.
+*   `dotnet build` to build the project.
+*   `dotnet test` to run tests. Use `--nologo` to suppress the banner.
+*   `dotnet test --verbosity normal --logger "console;verbosity=detailed" | cat` for verbose output.
+*   If facing terminal output issues, check build outputs in `/bin/Debug/net9.0/` to confirm successful build and test execution.
+
 ## BEST PRACTICES
