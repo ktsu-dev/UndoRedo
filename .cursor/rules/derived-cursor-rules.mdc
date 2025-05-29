@@ -7,6 +7,10 @@ globs: *
 
 This document outlines the rules, coding standards, workflow guidelines, and best practices for all projects. It serves as the central reference for the AI coding assistant and all developers involved.
 
+*   Adhere to SOLID and DRY principles.
+*   Use dependency injection.
+*   Employ a contacts, models, and services architecture.
+
 ## TECH STACK
 
 *   .NET (Specify version as needed)
@@ -14,6 +18,7 @@ This document outlines the rules, coding standards, workflow guidelines, and bes
 ## PROJECT DOCUMENTATION & CONTEXT SYSTEM
 
 *   All projects must have a solution file (.sln).
+*   Include a `docs` directory for design documentation.
 
 ## WORKFLOW & RELEASE RULES
 
