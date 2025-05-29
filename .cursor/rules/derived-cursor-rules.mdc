@@ -1,0 +1,22 @@
+---
+description: AI rules derived by SpecStory from the project AI interaction history
+globs: *
+---
+
+## PROJECT RULES & CODING STANDARDS
+
+This document outlines the rules, coding standards, workflow guidelines, and best practices for all projects. It serves as the central reference for the AI coding assistant and all developers involved.
+
+## TECH STACK
+
+*   .NET (Specify version as needed)
+
+## PROJECT DOCUMENTATION & CONTEXT SYSTEM
+
+*   All projects must have a solution file (.sln).
+
+## WORKFLOW & RELEASE RULES
+
+## DEBUGGING
+
+## BEST PRACTICES
