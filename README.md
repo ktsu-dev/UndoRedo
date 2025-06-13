@@ -205,6 +205,29 @@ undoRedoStack.SaveBoundaryCreated += (sender, e) =>
 };
 ```
 
+### Serialization and Persistence
+
+```csharp
+// Configure JSON serializer for persistence
+var serializer = new JsonUndoRedoSerializer();
+undoRedoStack.SetSerializer(serializer);
+
+// Save stack state to byte array
+byte[] data = await undoRedoStack.SaveStateAsync();
+await File.WriteAllBytesAsync("undo_stack.json", data);
+
+// Load stack state from byte array
+byte[] loadedData = await File.ReadAllBytesAsync("undo_stack.json");
+bool success = await undoRedoStack.LoadStateAsync(loadedData);
+
+// For commands that need custom serialization, implement ISerializableCommand
+public class MyCommand : BaseCommand, ISerializableCommand
+{
+    public string SerializeData() => JsonSerializer.Serialize(myData);
+    public void DeserializeData(string data) => myData = JsonSerializer.Deserialize<MyData>(data);
+}
+```
+
 ## Advanced Configuration
 
 ```csharp

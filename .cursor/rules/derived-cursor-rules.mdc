@@ -19,6 +19,7 @@ This document outlines the rules, coding standards, workflow guidelines, and bes
 
 *   All projects must have a solution file (.sln).
 *   Include a `docs` directory for design documentation.
+*   Ensure `README.md`, `TAGS.md`, and `DESCRIPTION.md` files are updated with current project information.
 
 ## WORKFLOW & RELEASE RULES
 
