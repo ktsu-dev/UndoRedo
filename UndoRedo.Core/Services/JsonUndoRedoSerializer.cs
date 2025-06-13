@@ -31,8 +31,11 @@ public class JsonUndoRedoSerializer(JsonSerializerOptions? options = null) : IUn
 	public string FormatVersion => "json-v1.0";
 
 	/// <inheritdoc />
-	public bool SupportsVersion(string version) =>
-		version == FormatVersion || version.StartsWith("json-v1.");
+	public bool SupportsVersion(string version)
+	{
+		ArgumentNullException.ThrowIfNull(version);
+		return version == FormatVersion || version.StartsWith("json-v1.");
+	}
 
 	/// <inheritdoc />
 	public async Task<byte[]> SerializeAsync(

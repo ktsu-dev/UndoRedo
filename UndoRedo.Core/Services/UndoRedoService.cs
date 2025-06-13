@@ -3,6 +3,7 @@
 // Licensed under the MIT license.
 
 namespace ktsu.UndoRedo.Core.Services;
+using System.Text.Json;
 using ktsu.UndoRedo.Core.Contracts;
 using ktsu.UndoRedo.Core.Models;
 
@@ -292,7 +293,7 @@ public sealed class UndoRedoService(
 			UndoRedoStackState? state = await _serializer.DeserializeAsync(data, cancellationToken).ConfigureAwait(false);
 			return state != null && RestoreFromState(state);
 		}
-		catch
+		catch (Exception ex) when (ex is JsonException or InvalidOperationException or NotSupportedException)
 		{
 			return false;
 		}
@@ -340,7 +341,7 @@ public sealed class UndoRedoService(
 
 			return true;
 		}
-		catch (Exception)
+		catch (Exception ex) when (ex is InvalidOperationException or ArgumentException)
 		{
 			return false;
 		}
