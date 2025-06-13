@@ -44,24 +44,68 @@ public sealed class CompositeCommand : BaseCommand
 	/// <inheritdoc />
 	public override void Execute()
 	{
-		foreach (ICommand command in _commands)
+		List<ICommand> executedCommands = [];
+
+		try
 		{
-			command.Execute();
+			foreach (ICommand command in _commands)
+			{
+				command.Execute();
+				executedCommands.Add(command);
+			}
 		}
+#pragma warning disable CA1031 // Do not catch general exception types
+		catch (Exception)
+		{
+			// Rollback all successfully executed commands in reverse order
+			for (int i = executedCommands.Count - 1; i >= 0; i--)
+			{
+				try
+				{
+					executedCommands[i].Undo();
+				}
+				catch (Exception)
+				{
+					// Continue with rollback even if individual undo fails
+				}
+			}
+			throw; // Re-throw the original exception
+		}
+#pragma warning restore CA1031 // Do not catch general exception types
 	}
 
 	/// <inheritdoc />
 	public override void Undo()
 	{
-		// Undo in reverse order
+		List<Exception> undoExceptions = [];
+
+		// Undo in reverse order, collecting any exceptions
 		for (int i = _commands.Count - 1; i >= 0; i--)
 		{
-			_commands[i].Undo();
+#pragma warning disable CA1031 // Do not catch general exception types
+			try
+			{
+				_commands[i].Undo();
+			}
+			catch (Exception ex)
+			{
+				undoExceptions.Add(ex);
+			}
+#pragma warning restore CA1031 // Do not catch general exception types
+		}
+
+		// If any undo operations failed, throw the first exception
+		if (undoExceptions.Count > 0)
+		{
+			throw undoExceptions[0];
 		}
 	}
 
 	/// <inheritdoc />
 	public override bool CanMergeWith(ICommand other) => false;
+
+	/// <inheritdoc />
+	public override ICommand MergeWith(ICommand other) => throw new NotSupportedException("Composite commands cannot be merged");
 
 	private static IReadOnlyList<string> GetAffectedItems(IEnumerable<ICommand> commands)
 	{

@@ -45,3 +45,7 @@ When running tests, use the following commands:
 *   When validating parameters, always check for null values to prevent `ArgumentNullException`.
 *   Use more specific exception handling instead of generic `catch`.
 *   Apply modern C# pattern matching syntax.
+
+## PACKAGE MANAGEMENT
+
+*   In `Directory.Packages.props`, sort and deduplicate packages, keeping only the highest version of each.
