@@ -63,7 +63,8 @@ public class UndoRedoStackTests
 		stack.Execute(command3);
 
 		// Assert
-		CollectionAssert.AreEqual(expected, values);
+		int[] expectedAfterThree = [1, 2, 3];
+		CollectionAssert.AreEqual(expectedAfterThree, values);
 
 		stack.Undo();
 		CollectionAssert.AreEqual(expected, values);
@@ -146,13 +147,14 @@ public class UndoRedoStackTests
 		stack.Execute(composite);
 
 		// Assert
-		CollectionAssert.AreEqual(expected, values);
+		string[] expectedComposite = ["A", "B", "C"];
+		CollectionAssert.AreEqual(expectedComposite, values);
 
 		stack.Undo();
 		Assert.AreEqual(0, values.Count);
 
 		stack.Redo();
-		CollectionAssert.AreEqual(expected, values);
+		CollectionAssert.AreEqual(expectedComposite, values);
 	}
 
 	[TestMethod]
@@ -318,7 +320,8 @@ public class UndoRedoStackTests
 		stack.Execute(outer);
 
 		// Assert
-		CollectionAssert.AreEqual(expected, values);
+		string[] expectedNested = ["A", "B", "C", "D"];
+		CollectionAssert.AreEqual(expectedNested, values);
 
 		stack.Undo();
 		Assert.AreEqual(0, values.Count);
@@ -465,7 +468,8 @@ public class UndoRedoStackTests
 		stack.Redo();
 
 		// Assert
-		CollectionAssert.AreEqual(expected, eventOrder);
+		string[] expectedEvents = ["Executed", "SaveBoundary", "Undone", "Redone"];
+		CollectionAssert.AreEqual(expectedEvents, eventOrder);
 	}
 
 	private sealed class TestMergeableCommand(Action<string> setter, string newValue) : BaseCommand(ChangeType.Modify, ["text"])

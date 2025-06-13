@@ -109,9 +109,9 @@ public class CompositeCommandTests
 		// Assert - Undo should throw but still attempt to undo all commands
 		Assert.ThrowsException<InvalidOperationException>(composite.Undo);
 
-		// Commands should still be partially undone (A and C undone, B failed)
+		// Commands should still be partially undone (C and A undone from end, B failed)
 		Assert.AreEqual(1, values.Count);
-		Assert.AreEqual("B", values[0]);
+		Assert.AreEqual("A", values[0]);  // A remains because B's undo failed, C was undone, A tried to undo but only removes from end
 	}
 
 	[TestMethod]

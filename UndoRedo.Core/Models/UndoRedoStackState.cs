@@ -41,7 +41,7 @@ public record UndoRedoStackState(
 	/// <summary>
 	/// Gets whether there are commands that can be redone
 	/// </summary>
-	public bool CanRedo => CurrentPosition < Commands.Count;
+	public bool CanRedo => CurrentPosition < Commands.Count - 1;
 
 	/// <summary>
 	/// Gets the total number of commands in the stack

@@ -18,8 +18,14 @@ public sealed class SaveBoundaryManager : ISaveBoundaryManager
 	/// <inheritdoc />
 	public bool HasUnsavedChanges(int currentPosition)
 	{
-		SaveBoundary? lastSave = _saveBoundaries.LastOrDefault();
-		return lastSave == null || currentPosition > lastSave.Position;
+		// If no save boundaries exist, we have unsaved changes unless at initial position
+		if (_saveBoundaries.Count == 0)
+		{
+			return currentPosition >= 0;
+		}
+
+		// No unsaved changes if we're exactly at a save boundary position
+		return !_saveBoundaries.Any(boundary => boundary.Position == currentPosition);
 	}
 
 	/// <inheritdoc />

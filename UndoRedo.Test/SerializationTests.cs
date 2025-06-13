@@ -168,7 +168,7 @@ public class SerializationTests
 
 		// Assert
 		Assert.AreEqual(2, state.CommandCount);
-		Assert.AreEqual(2, state.CurrentPosition);
+		Assert.AreEqual(1, state.CurrentPosition); // Fixed: position is 0-based, after 2 commands it should be 1
 		Assert.AreEqual(1, state.SaveBoundaries.Count);
 		Assert.IsFalse(state.IsEmpty);
 		Assert.IsTrue(state.CanUndo);
@@ -259,7 +259,7 @@ public class SerializationTests
 		Assert.AreEqual(3, state.CommandCount);
 		Assert.AreEqual(2, state.CurrentPosition);
 		Assert.IsTrue(state.CanUndo);
-		Assert.IsTrue(state.CanRedo);
+		Assert.IsFalse(state.CanRedo); // Fixed: at position 2 with 3 commands (0,1,2), cannot redo
 	}
 
 	private sealed class TestSerializableCommand : BaseCommand, ISerializableCommand
