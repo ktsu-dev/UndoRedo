@@ -1,3 +1,10 @@
+## v1.0.2 (patch)
+
+Changes since v1.0.1:
+
+- Update package references, improve project structure, and enhance documentation ([@matt-edmondson](https://github.com/matt-edmondson))
+- Refactor JsonUndoRedoSerializer and UndoRedoService error handling ([@matt-edmondson](https://github.com/matt-edmondson))
+- Enhance JsonUndoRedoSerializer and UndoRedoService functionality ([@matt-edmondson](https://github.com/matt-edmondson))
 ## v1.0.1 (patch)
 
 Changes since v1.0.0:
@@ -5,7 +12,7 @@ Changes since v1.0.0:
 - Add serialization support for undo/redo stack state ([@matt-edmondson](https://github.com/matt-edmondson))
 ## v1.0.1-pre.1 (prerelease)
 
-Changes since v1.0.0:
+Incremental prerelease update.
 ## v1.0.0 (major)
 
 - Initial commit for UndoRedo ([@matt-edmondson](https://github.com/matt-edmondson))
