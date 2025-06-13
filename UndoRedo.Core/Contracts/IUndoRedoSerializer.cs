@@ -2,9 +2,8 @@
 // All rights reserved.
 // Licensed under the MIT license.
 
-using ktsu.UndoRedo.Core.Models;
-
 namespace ktsu.UndoRedo.Core.Contracts;
+using ktsu.UndoRedo.Core.Models;
 
 /// <summary>
 /// Interface for serializing and deserializing undo/redo stack state
@@ -19,7 +18,7 @@ public interface IUndoRedoSerializer
 	/// <param name="saveBoundaries">The save boundaries</param>
 	/// <param name="cancellationToken">Cancellation token</param>
 	/// <returns>Serialized stack state</returns>
-	Task<byte[]> SerializeAsync(
+	public Task<byte[]> SerializeAsync(
 		IReadOnlyList<ICommand> commands,
 		int currentPosition,
 		IReadOnlyList<SaveBoundary> saveBoundaries,
@@ -31,19 +30,19 @@ public interface IUndoRedoSerializer
 	/// <param name="data">The serialized data</param>
 	/// <param name="cancellationToken">Cancellation token</param>
 	/// <returns>Deserialized stack state</returns>
-	Task<UndoRedoStackState> DeserializeAsync(
+	public Task<UndoRedoStackState> DeserializeAsync(
 		byte[] data,
 		CancellationToken cancellationToken = default);
 
 	/// <summary>
 	/// Gets the supported format version for this serializer
 	/// </summary>
-	string FormatVersion { get; }
+	public string FormatVersion { get; }
 
 	/// <summary>
 	/// Checks if this serializer can handle the given format version
 	/// </summary>
 	/// <param name="version">The format version to check</param>
 	/// <returns>True if supported, false otherwise</returns>
-	bool SupportsVersion(string version);
+	public bool SupportsVersion(string version);
 }

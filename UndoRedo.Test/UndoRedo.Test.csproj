@@ -1,2 +1,7 @@
 <Project Sdk="ktsu.Sdk.Test">
+
+	<ItemGroup>
+		<ProjectReference Include="..\UndoRedo.Core\UndoRedo.Core.csproj" />
+	</ItemGroup>
+
 </Project>

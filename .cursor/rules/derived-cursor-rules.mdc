@@ -33,5 +33,12 @@ When running tests, use the following commands:
 *   `dotnet test` to run tests. Use `--nologo` to suppress the banner.
 *   `dotnet test --verbosity normal --logger "console;verbosity=detailed" | cat` for verbose output.
 *   If facing terminal output issues, check build outputs in `/bin/Debug/net9.0/` to confirm successful build and test execution.
+*   If encountering `CS0101`, `CS0111` errors, carefully review the project structure and ensure there are no duplicate class or interface definitions within the same namespace.
+*   If encountering `CS0246` errors related to missing `IServiceCollection`, ensure the correct using directive (`using Microsoft.Extensions.DependencyInjection;`) is included in the relevant files.
+*   If encountering `CS0535` errors, ensure that the class fully implements the interface and all its members.
+*   When working with `IServiceCollection`, if encountering errors related to missing `TryAddSingleton`, `TryAddTransient`, or `TryAddScoped` extension methods, ensure the `Microsoft.Extensions.DependencyInjection.Extensions` namespace is included via a `using` directive.
+*   When validating parameters, always check for null values to prevent `ArgumentNullException`.
 
 ## BEST PRACTICES
+
+*   When validating parameters, always check for null values to prevent `ArgumentNullException`.

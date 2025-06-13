@@ -2,10 +2,8 @@
 // All rights reserved.
 // Licensed under the MIT license.
 
-using ktsu.UndoRedo.Core.Contracts;
-using ktsu.UndoRedo.Core.Models;
-
 namespace ktsu.UndoRedo.Core.Services;
+using ktsu.UndoRedo.Core.Contracts;
 
 /// <summary>
 /// Service for managing save boundaries
@@ -20,14 +18,14 @@ public sealed class SaveBoundaryManager : ISaveBoundaryManager
 	/// <inheritdoc />
 	public bool HasUnsavedChanges(int currentPosition)
 	{
-		var lastSave = _saveBoundaries.LastOrDefault();
+		SaveBoundary? lastSave = _saveBoundaries.LastOrDefault();
 		return lastSave == null || currentPosition > lastSave.Position;
 	}
 
 	/// <inheritdoc />
 	public SaveBoundary CreateSaveBoundary(int position, string? description = null)
 	{
-		var saveBoundary = new SaveBoundary(position, description);
+		SaveBoundary saveBoundary = new(position, description);
 		_saveBoundaries.Add(saveBoundary);
 		return saveBoundary;
 	}
@@ -35,8 +33,8 @@ public sealed class SaveBoundaryManager : ISaveBoundaryManager
 	/// <inheritdoc />
 	public int CleanupInvalidBoundaries(int maxValidPosition)
 	{
-		var removed = 0;
-		for (var i = _saveBoundaries.Count - 1; i >= 0; i--)
+		int removed = 0;
+		for (int i = _saveBoundaries.Count - 1; i >= 0; i--)
 		{
 			if (_saveBoundaries[i].Position > maxValidPosition)
 			{
@@ -55,10 +53,10 @@ public sealed class SaveBoundaryManager : ISaveBoundaryManager
 			return;
 		}
 
-		for (var i = _saveBoundaries.Count - 1; i >= 0; i--)
+		for (int i = _saveBoundaries.Count - 1; i >= 0; i--)
 		{
-			var boundary = _saveBoundaries[i];
-			var newPosition = boundary.Position + adjustment;
+			SaveBoundary boundary = _saveBoundaries[i];
+			int newPosition = boundary.Position + adjustment;
 
 			if (newPosition < 0)
 			{
@@ -81,12 +79,9 @@ public sealed class SaveBoundaryManager : ISaveBoundaryManager
 		ArgumentNullException.ThrowIfNull(saveBoundary);
 		ArgumentNullException.ThrowIfNull(commands);
 
-		if (currentPosition <= saveBoundary.Position)
-		{
-			return [];
-		}
-
-		return commands.Skip(saveBoundary.Position + 1).Take(currentPosition - saveBoundary.Position);
+		return currentPosition <= saveBoundary.Position
+			? []
+			: commands.Skip(saveBoundary.Position + 1).Take(currentPosition - saveBoundary.Position);
 	}
 
 	/// <inheritdoc />

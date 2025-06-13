@@ -2,9 +2,8 @@
 // All rights reserved.
 // Licensed under the MIT license.
 
-using ktsu.UndoRedo.Core.Contracts;
-
 namespace ktsu.UndoRedo.Core.Services;
+using ktsu.UndoRedo.Core.Contracts;
 
 /// <summary>
 /// Service for merging compatible commands
@@ -26,11 +25,6 @@ public sealed class CommandMerger : ICommandMerger
 		ArgumentNullException.ThrowIfNull(first);
 		ArgumentNullException.ThrowIfNull(second);
 
-		if (!CanMerge(first, second))
-		{
-			throw new InvalidOperationException("Commands cannot be merged");
-		}
-
-		return first.MergeWith(second);
+		return !CanMerge(first, second) ? throw new InvalidOperationException("Commands cannot be merged") : first.MergeWith(second);
 	}
 }

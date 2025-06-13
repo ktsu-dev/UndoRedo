@@ -2,13 +2,12 @@
 // All rights reserved.
 // Licensed under the MIT license.
 
+namespace ktsu.UndoRedo.Core;
 using ktsu.UndoRedo.Core.Contracts;
 using ktsu.UndoRedo.Core.Models;
 using ktsu.UndoRedo.Core.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-
-namespace ktsu.UndoRedo.Core;
 
 /// <summary>
 /// Extension methods for registering undo/redo services with dependency injection
@@ -50,9 +49,9 @@ public static class ServiceCollectionExtensions
 		ArgumentNullException.ThrowIfNull(services);
 		ArgumentNullException.ThrowIfNull(configureOptions);
 
-		var builder = new UndoRedoOptionsBuilder();
+		UndoRedoOptionsBuilder builder = new();
 		configureOptions(builder);
-		var options = builder.Build();
+		UndoRedoOptions options = builder.Build();
 
 		return services.AddUndoRedo(options);
 	}

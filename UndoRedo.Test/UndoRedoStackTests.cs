@@ -2,14 +2,6 @@
 // All rights reserved.
 // Licensed under the MIT license.
 
-using ktsu.UndoRedo.Core;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
-
 namespace ktsu.UndoRedo.Test;
 
 [TestClass]
@@ -20,8 +12,8 @@ public class UndoRedoStackTests
 	{
 		// Arrange
 		var stack = new UndoRedoStack();
-		var value = 0;
-		var command = new DelegateCommand(
+		int value = 0;
+		DelegateCommand command = new(
 			"Increment",
 			() => value++,
 			() => value--,
@@ -47,17 +39,19 @@ public class UndoRedoStackTests
 		Assert.IsTrue(stack.CanUndo);
 		Assert.IsFalse(stack.CanRedo);
 	}
+	private static readonly int[] expected = [1, 2];
+	private static readonly int[] expectedArray = [1];
 
 	[TestMethod]
 	public void Execute_MultipleCommands_MaintainsCorrectOrder()
 	{
 		// Arrange
 		var stack = new UndoRedoStack();
-		var values = new List<int>();
+		List<int> values = [];
 
-		var command1 = new DelegateCommand("Add 1", () => values.Add(1), () => values.RemoveAt(values.Count - 1));
-		var command2 = new DelegateCommand("Add 2", () => values.Add(2), () => values.RemoveAt(values.Count - 1));
-		var command3 = new DelegateCommand("Add 3", () => values.Add(3), () => values.RemoveAt(values.Count - 1));
+		DelegateCommand command1 = new("Add 1", () => values.Add(1), () => values.RemoveAt(values.Count - 1));
+		DelegateCommand command2 = new("Add 2", () => values.Add(2), () => values.RemoveAt(values.Count - 1));
+		DelegateCommand command3 = new("Add 3", () => values.Add(3), () => values.RemoveAt(values.Count - 1));
 
 		// Act
 		stack.Execute(command1);
@@ -65,16 +59,16 @@ public class UndoRedoStackTests
 		stack.Execute(command3);
 
 		// Assert
-		CollectionAssert.AreEqual(new[] { 1, 2, 3 }, values);
+		CollectionAssert.AreEqual(expected, values);
 
 		stack.Undo();
-		CollectionAssert.AreEqual(new[] { 1, 2 }, values);
+		CollectionAssert.AreEqual(expected, values);
 
 		stack.Undo();
-		CollectionAssert.AreEqual(new[] { 1 }, values);
+		CollectionAssert.AreEqual(expectedArray, values);
 
 		stack.Redo();
-		CollectionAssert.AreEqual(new[] { 1, 2 }, values);
+		CollectionAssert.AreEqual(expected, values);
 	}
 
 	[TestMethod]
@@ -82,11 +76,11 @@ public class UndoRedoStackTests
 	{
 		// Arrange
 		var stack = new UndoRedoStack();
-		var value = 0;
+		int value = 0;
 
-		var command1 = new DelegateCommand("Set to 1", () => value = 1, () => value = 0);
-		var command2 = new DelegateCommand("Set to 2", () => value = 2, () => value = 1);
-		var command3 = new DelegateCommand("Set to 3", () => value = 3, () => value = 2);
+		DelegateCommand command1 = new("Set to 1", () => value = 1, () => value = 0);
+		DelegateCommand command2 = new("Set to 2", () => value = 2, () => value = 1);
+		DelegateCommand command3 = new("Set to 3", () => value = 3, () => value = 2);
 
 		// Act
 		stack.Execute(command1);
@@ -108,8 +102,8 @@ public class UndoRedoStackTests
 	{
 		// Arrange
 		var stack = new UndoRedoStack();
-		var value = 0;
-		var command = new DelegateCommand("Increment", () => value++, () => value--);
+		int value = 0;
+		DelegateCommand command = new("Increment", () => value++, () => value--);
 
 		// Act & Assert
 		Assert.IsFalse(stack.HasUnsavedChanges);
@@ -133,28 +127,28 @@ public class UndoRedoStackTests
 	{
 		// Arrange
 		var stack = new UndoRedoStack();
-		var values = new List<string>();
+		List<string> values = [];
 
-		var commands = new[]
-		{
+		DelegateCommand[] commands =
+		[
 			new DelegateCommand("Add A", () => values.Add("A"), () => values.RemoveAt(values.Count - 1)),
 			new DelegateCommand("Add B", () => values.Add("B"), () => values.RemoveAt(values.Count - 1)),
 			new DelegateCommand("Add C", () => values.Add("C"), () => values.RemoveAt(values.Count - 1))
-		};
+		];
 
-		var composite = new CompositeCommand("Add ABC", commands);
+		CompositeCommand composite = new("Add ABC", commands);
 
 		// Act
 		stack.Execute(composite);
 
 		// Assert
-		CollectionAssert.AreEqual(new[] { "A", "B", "C" }, values);
+		CollectionAssert.AreEqual(expected, values);
 
 		stack.Undo();
 		Assert.AreEqual(0, values.Count);
 
 		stack.Redo();
-		CollectionAssert.AreEqual(new[] { "A", "B", "C" }, values);
+		CollectionAssert.AreEqual(expected, values);
 	}
 
 	[TestMethod]
@@ -162,10 +156,10 @@ public class UndoRedoStackTests
 	{
 		// Arrange
 		var stack = new UndoRedoStack();
-		var navigationProvider = new MockNavigationProvider();
+		MockNavigationProvider navigationProvider = new();
 		stack.SetNavigationProvider(navigationProvider);
 
-		var command = new DelegateCommand(
+		DelegateCommand command = new(
 			"Test Command",
 			() => { },
 			() => { },
@@ -186,8 +180,8 @@ public class UndoRedoStackTests
 	{
 		// Arrange
 		var stack = new UndoRedoStack();
-		var command1 = new DelegateCommand("Command 1", () => { }, () => { }, ChangeType.Insert, ["item1"]);
-		var command2 = new DelegateCommand("Command 2", () => { }, () => { }, ChangeType.Delete, ["item2"]);
+		DelegateCommand command1 = new("Command 1", () => { }, () => { }, ChangeType.Insert, ["item1"]);
+		DelegateCommand command2 = new("Command 2", () => { }, () => { }, ChangeType.Delete, ["item2"]);
 
 		// Act
 		stack.Execute(command1);
@@ -213,14 +207,14 @@ public class UndoRedoStackTests
 	{
 		// Arrange
 		var stack = new UndoRedoStack();
-		var events = new List<string>();
+		List<string> events = [];
 
 		stack.CommandExecuted += (_, e) => events.Add($"Executed: {e.Command.Description}");
 		stack.CommandUndone += (_, e) => events.Add($"Undone: {e.Command.Description}");
 		stack.CommandRedone += (_, e) => events.Add($"Redone: {e.Command.Description}");
 		stack.SaveBoundaryCreated += (_, e) => events.Add($"Saved: {e.SaveBoundary.Description}");
 
-		var command = new DelegateCommand("Test", () => { }, () => { });
+		DelegateCommand command = new("Test", () => { }, () => { });
 
 		// Act
 		stack.Execute(command);
@@ -236,7 +230,7 @@ public class UndoRedoStackTests
 		Assert.AreEqual("Redone: Test", events[3]);
 	}
 
-	private class MockNavigationProvider : INavigationProvider
+	private sealed class MockNavigationProvider : INavigationProvider
 	{
 		public string? LastNavigatedContext { get; private set; }
 
@@ -257,12 +251,12 @@ public class UndoRedoStackTests
 		// Arrange
 		var options = UndoRedoOptions.Create(maxStackSize: 3);
 		var stack = new UndoRedoStack(options);
-		var value = 0;
+		int value = 0;
 
 		// Act - Execute 5 commands when max is 3
 		for (int i = 1; i <= 5; i++)
 		{
-			var localI = i;
+			int localI = i;
 			stack.Execute(new DelegateCommand($"Set to {localI}", () => value = localI, () => value = localI - 1));
 		}
 
@@ -283,13 +277,13 @@ public class UndoRedoStackTests
 	{
 		// Arrange
 		var stack = new UndoRedoStack();
-		var text = "";
+		string text = "";
 
 		// Act - Execute mergeable commands
-		var cmd1 = new TestMergeableCommand(t => text = t, "a");
-		var cmd2 = new TestMergeableCommand(t => text = t, "ab");
-		var cmd3 = new TestMergeableCommand(t => text = t, "abc");
-		var nonMergeable = new DelegateCommand("Non-mergeable", () => { }, () => { });
+		TestMergeableCommand cmd1 = new(t => text = t, "a");
+		TestMergeableCommand cmd2 = new(t => text = t, "ab");
+		TestMergeableCommand cmd3 = new(t => text = t, "abc");
+		DelegateCommand nonMergeable = new("Non-mergeable", () => { }, () => { });
 
 		stack.Execute(cmd1);
 		stack.Execute(cmd2);
@@ -310,31 +304,31 @@ public class UndoRedoStackTests
 	{
 		// Arrange
 		var stack = new UndoRedoStack();
-		var values = new List<string>();
+		List<string> values = [];
 
-		var innerComposite1 = new CompositeCommand("Inner 1", new[]
-		{
+		CompositeCommand innerComposite1 = new("Inner 1",
+		[
 			new DelegateCommand("Add X", () => values.Add("X"), () => values.RemoveAt(values.Count - 1)),
 			new DelegateCommand("Add Y", () => values.Add("Y"), () => values.RemoveAt(values.Count - 1))
-		});
+		]);
 
-		var innerComposite2 = new CompositeCommand("Inner 2", new[]
-		{
+		CompositeCommand innerComposite2 = new("Inner 2",
+		[
 			new DelegateCommand("Add Z", () => values.Add("Z"), () => values.RemoveAt(values.Count - 1))
-		});
+		]);
 
-		var outerComposite = new CompositeCommand("Outer", new ICommand[]
-		{
+		CompositeCommand outerComposite = new("Outer",
+		[
 			innerComposite1,
 			new DelegateCommand("Add W", () => values.Add("W"), () => values.RemoveAt(values.Count - 1)),
 			innerComposite2
-		});
+		]);
 
 		// Act
 		stack.Execute(outerComposite);
 
 		// Assert
-		CollectionAssert.AreEqual(new[] { "X", "Y", "W", "Z" }, values);
+		CollectionAssert.AreEqual(expected, values);
 		Assert.AreEqual(1, stack.CommandCount); // Single composite command
 
 		stack.Undo();
@@ -346,7 +340,7 @@ public class UndoRedoStackTests
 	{
 		// Arrange
 		var stack = new UndoRedoStack();
-		var value = 0;
+		int value = 0;
 
 		// Act - Complex sequence with save boundaries
 		stack.Execute(new DelegateCommand("Set 1", () => value = 1, () => value = 0));
@@ -380,14 +374,14 @@ public class UndoRedoStackTests
 	{
 		// Arrange
 		var stack = new UndoRedoStack();
-		var slowNavigationProvider = new SlowNavigationProvider();
+		SlowNavigationProvider slowNavigationProvider = new();
 		stack.SetNavigationProvider(slowNavigationProvider);
 
-		var command = new DelegateCommand("Test", () => { }, () => { }, navigationContext: "test");
+		DelegateCommand command = new("Test", () => { }, () => { }, navigationContext: "test");
 		stack.Execute(command);
 
 		// Act & Assert - Test cancellation
-		using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(10));
+		using CancellationTokenSource cts = new(TimeSpan.FromMilliseconds(10));
 		var result = await stack.UndoAsync(navigateToChange: true, cts.Token);
 
 		Assert.IsFalse(result); // Should fail due to timeout
@@ -399,10 +393,10 @@ public class UndoRedoStackTests
 	{
 		// Arrange
 		var stack = new UndoRedoStack();
-		var value = 0;
+		int value = 0;
 
-		var goodCommand = new DelegateCommand("Good", () => value = 1, () => value = 0);
-		var badCommand = new DelegateCommand("Bad", () => throw new InvalidOperationException("Test error"), () => { });
+		DelegateCommand goodCommand = new("Good", () => value = 1, () => value = 0);
+		DelegateCommand badCommand = new("Bad", () => throw new InvalidOperationException("Test error"), () => { });
 
 		// Act & Assert
 		stack.Execute(goodCommand);
@@ -425,7 +419,7 @@ public class UndoRedoStackTests
 	{
 		// Arrange
 		var stack = new UndoRedoStack();
-		var fakeBoundary = new SaveBoundary(0, DateTime.Now, "Fake");
+		SaveBoundary fakeBoundary = new(0, DateTime.Now, "Fake");
 
 		// Act & Assert
 		Assert.ThrowsException<ArgumentException>(() =>
@@ -476,14 +470,14 @@ public class UndoRedoStackTests
 	{
 		// Arrange
 		var stack = new UndoRedoStack();
-		var eventOrder = new List<string>();
+		List<string> eventOrder = [];
 
 		stack.CommandExecuted += (_, _) => eventOrder.Add("Executed");
 		stack.CommandUndone += (_, _) => eventOrder.Add("Undone");
 		stack.CommandRedone += (_, _) => eventOrder.Add("Redone");
 		stack.SaveBoundaryCreated += (_, _) => eventOrder.Add("SaveBoundary");
 
-		var command = new DelegateCommand("Test", () => { }, () => { });
+		DelegateCommand command = new("Test", () => { }, () => { });
 
 		// Act
 		stack.Execute(command);
@@ -492,25 +486,18 @@ public class UndoRedoStackTests
 		stack.Redo();
 
 		// Assert
-		CollectionAssert.AreEqual(new[] { "Executed", "SaveBoundary", "Undone", "Redone" }, eventOrder);
+		CollectionAssert.AreEqual(expected, eventOrder);
 	}
 
 	#endregion
 
 	#region Helper Classes for Testing
 
-	private class TestMergeableCommand : BaseCommand
+	private sealed class TestMergeableCommand(Action<string> setter, string newValue) : BaseCommand(ChangeType.Modify, ["text"])
 	{
-		private readonly Action<string> _setter;
-		private readonly string _newValue;
-		private string _oldValue = "";
-
-		public TestMergeableCommand(Action<string> setter, string newValue)
-			: base(ChangeType.Modify, new[] { "text" })
-		{
-			_setter = setter;
-			_newValue = newValue;
-		}
+		private readonly Action<string> _setter = setter;
+		private readonly string _newValue = newValue;
+		private readonly string _oldValue = "";
 
 		public override string Description => $"Set text to '{_newValue}'";
 
@@ -532,12 +519,12 @@ public class UndoRedoStackTests
 
 		public override ICommand MergeWith(ICommand other)
 		{
-			var otherCmd = (TestMergeableCommand)other;
+			TestMergeableCommand otherCmd = (TestMergeableCommand)other;
 			return new TestMergeableCommand(_setter, otherCmd._newValue);
 		}
 	}
 
-	private class SlowNavigationProvider : INavigationProvider
+	private sealed class SlowNavigationProvider : INavigationProvider
 	{
 		public bool WasCancelled { get; private set; }
 
@@ -545,7 +532,7 @@ public class UndoRedoStackTests
 		{
 			try
 			{
-				await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken);
+				await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken).ConfigureAwait(false);
 				return true;
 			}
 			catch (OperationCanceledException)

@@ -2,8 +2,6 @@
 // All rights reserved.
 // Licensed under the MIT license.
 
-using ktsu.UndoRedo.Core.Models;
-
 namespace ktsu.UndoRedo.Core;
 
 /// <summary>

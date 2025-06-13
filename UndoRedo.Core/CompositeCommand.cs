@@ -2,9 +2,6 @@
 // All rights reserved.
 // Licensed under the MIT license.
 
-using ktsu.UndoRedo.Core.Contracts;
-using ktsu.UndoRedo.Core.Models;
-
 namespace ktsu.UndoRedo.Core;
 
 /// <summary>
@@ -47,7 +44,7 @@ public sealed class CompositeCommand : BaseCommand
 	/// <inheritdoc />
 	public override void Execute()
 	{
-		foreach (var command in _commands)
+		foreach (ICommand command in _commands)
 		{
 			command.Execute();
 		}
@@ -57,7 +54,7 @@ public sealed class CompositeCommand : BaseCommand
 	public override void Undo()
 	{
 		// Undo in reverse order
-		for (var i = _commands.Count - 1; i >= 0; i--)
+		for (int i = _commands.Count - 1; i >= 0; i--)
 		{
 			_commands[i].Undo();
 		}
@@ -68,13 +65,13 @@ public sealed class CompositeCommand : BaseCommand
 
 	private static IReadOnlyList<string> GetAffectedItems(IEnumerable<ICommand> commands)
 	{
-		var commandList = commands.ToList();
+		List<ICommand> commandList = [.. commands];
 		return [.. commandList.SelectMany(c => c.Metadata.AffectedItems).Distinct()];
 	}
 
 	private static int GetTotalSize(IEnumerable<ICommand> commands)
 	{
-		var commandList = commands.ToList();
+		List<ICommand> commandList = [.. commands];
 		return commandList.Sum(c => c.Metadata.Size);
 	}
 }

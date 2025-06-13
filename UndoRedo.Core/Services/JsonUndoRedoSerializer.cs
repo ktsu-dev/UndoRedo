@@ -2,17 +2,20 @@
 // All rights reserved.
 // Licensed under the MIT license.
 
-using ktsu.UndoRedo.Core.Contracts;
-using ktsu.UndoRedo.Core.Models;
+namespace ktsu.UndoRedo.Core.Services;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-
-namespace ktsu.UndoRedo.Core.Services;
+using ktsu.UndoRedo.Core.Contracts;
+using ktsu.UndoRedo.Core.Models;
 
 /// <summary>
 /// JSON-based serializer for undo/redo stack state
 /// </summary>
-public class JsonUndoRedoSerializer : IUndoRedoSerializer
+/// <remarks>
+/// Initializes a new instance of the JsonUndoRedoSerializer
+/// </remarks>
+/// <param name="options">Custom JSON serializer options</param>
+public class JsonUndoRedoSerializer(JsonSerializerOptions? options = null) : IUndoRedoSerializer
 {
 	private static readonly JsonSerializerOptions DefaultOptions = new()
 	{
@@ -22,16 +25,7 @@ public class JsonUndoRedoSerializer : IUndoRedoSerializer
 		Converters = { new JsonStringEnumConverter() }
 	};
 
-	private readonly JsonSerializerOptions _options;
-
-	/// <summary>
-	/// Initializes a new instance of the JsonUndoRedoSerializer
-	/// </summary>
-	/// <param name="options">Custom JSON serializer options</param>
-	public JsonUndoRedoSerializer(JsonSerializerOptions? options = null)
-	{
-		_options = options ?? DefaultOptions;
-	}
+	private readonly JsonSerializerOptions _options = options ?? DefaultOptions;
 
 	/// <inheritdoc />
 	public string FormatVersion => "json-v1.0";
@@ -47,18 +41,18 @@ public class JsonUndoRedoSerializer : IUndoRedoSerializer
 		IReadOnlyList<SaveBoundary> saveBoundaries,
 		CancellationToken cancellationToken = default)
 	{
-		var serializableCommands = commands.Select(ConvertToSerializableCommand).ToList();
-		var state = new SerializableStackState
+		List<SerializableCommand> serializableCommands = [.. commands.Select(ConvertToSerializableCommand)];
+		SerializableStackState state = new()
 		{
 			Commands = serializableCommands,
 			CurrentPosition = currentPosition,
-			SaveBoundaries = saveBoundaries.ToList(),
+			SaveBoundaries = [.. saveBoundaries],
 			FormatVersion = FormatVersion,
 			Timestamp = DateTime.UtcNow
 		};
 
-		using var stream = new MemoryStream();
-		await JsonSerializer.SerializeAsync(stream, state, _options, cancellationToken);
+		using MemoryStream stream = new();
+		await JsonSerializer.SerializeAsync(stream, state, _options, cancellationToken).ConfigureAwait(false);
 		return stream.ToArray();
 	}
 
@@ -67,8 +61,8 @@ public class JsonUndoRedoSerializer : IUndoRedoSerializer
 		byte[] data,
 		CancellationToken cancellationToken = default)
 	{
-		using var stream = new MemoryStream(data);
-		var serializableState = await JsonSerializer.DeserializeAsync<SerializableStackState>(stream, _options, cancellationToken)
+		using MemoryStream stream = new(data);
+		SerializableStackState serializableState = await JsonSerializer.DeserializeAsync<SerializableStackState>(stream, _options, cancellationToken).ConfigureAwait(false)
 			?? throw new InvalidOperationException("Failed to deserialize stack state");
 
 		if (!SupportsVersion(serializableState.FormatVersion))
@@ -76,7 +70,7 @@ public class JsonUndoRedoSerializer : IUndoRedoSerializer
 			throw new NotSupportedException($"Unsupported format version: {serializableState.FormatVersion}");
 		}
 
-		var commands = serializableState.Commands.Select(ConvertFromSerializableCommand).ToList();
+		List<ICommand> commands = [.. serializableState.Commands.Select(ConvertFromSerializableCommand)];
 		return new UndoRedoStackState(
 			commands,
 			serializableState.CurrentPosition,
@@ -91,6 +85,7 @@ public class JsonUndoRedoSerializer : IUndoRedoSerializer
 		{
 			Type = command.GetType().AssemblyQualifiedName ?? command.GetType().FullName!,
 			Description = command.Description,
+			NavigationContext = command.NavigationContext,
 			Metadata = command.Metadata,
 			// Note: Execute/Undo actions cannot be serialized - this is a limitation
 			// Applications need to implement their own command types that can reconstruct actions
@@ -109,16 +104,16 @@ public class JsonUndoRedoSerializer : IUndoRedoSerializer
 		}
 
 		// For commands that implement ISerializableCommand, try to reconstruct them
-		var commandType = Type.GetType(serializableCommand.Type);
+		Type? commandType = Type.GetType(serializableCommand.Type);
 		if (commandType != null && typeof(ISerializableCommand).IsAssignableFrom(commandType))
 		{
-			var instance = Activator.CreateInstance(commandType) as ISerializableCommand;
+			ISerializableCommand? instance = Activator.CreateInstance(commandType) as ISerializableCommand;
 			instance?.DeserializeData(serializableCommand.Data);
 			return (ICommand)instance!;
 		}
 
 		// Fallback to placeholder
-		return new PlaceholderCommand(serializableCommand.Description, serializableCommand.Metadata);
+		return new PlaceholderCommand(serializableCommand.Description, serializableCommand.NavigationContext, serializableCommand.Metadata);
 	}
 
 	/// <summary>
@@ -128,6 +123,7 @@ public class JsonUndoRedoSerializer : IUndoRedoSerializer
 	{
 		public string Type { get; set; } = string.Empty;
 		public string Description { get; set; } = string.Empty;
+		public string? NavigationContext { get; set; }
 		public ChangeMetadata Metadata { get; set; } = null!;
 		public string? Data { get; set; }
 	}
@@ -137,9 +133,9 @@ public class JsonUndoRedoSerializer : IUndoRedoSerializer
 	/// </summary>
 	private class SerializableStackState
 	{
-		public List<SerializableCommand> Commands { get; set; } = new();
+		public List<SerializableCommand> Commands { get; set; } = [];
 		public int CurrentPosition { get; set; }
-		public List<SaveBoundary> SaveBoundaries { get; set; } = new();
+		public List<SaveBoundary> SaveBoundaries { get; set; } = [];
 		public string FormatVersion { get; set; } = string.Empty;
 		public DateTime Timestamp { get; set; }
 	}
@@ -154,35 +150,23 @@ public interface ISerializableCommand
 	/// Serializes the command's data to a string
 	/// </summary>
 	/// <returns>Serialized command data</returns>
-	string SerializeData();
+	public string SerializeData();
 
 	/// <summary>
 	/// Deserializes the command's data from a string
 	/// </summary>
 	/// <param name="data">The serialized data</param>
-	void DeserializeData(string data);
+	public void DeserializeData(string data);
 }
 
 /// <summary>
 /// Placeholder command used when the original command cannot be deserialized
 /// </summary>
-internal class PlaceholderCommand : BaseCommand
+internal class PlaceholderCommand(string description, string? navigationContext, ChangeMetadata metadata) : BaseCommand(metadata.ChangeType, metadata.AffectedItems, navigationContext)
 {
-	public PlaceholderCommand(string description, ChangeMetadata metadata)
-		: base(metadata.ChangeType, metadata.AffectedItems, metadata.NavigationContext)
-	{
-		Description = $"[Placeholder] {description}";
-	}
+	public override string Description { get; } = $"[Placeholder] {description}";
 
-	public override string Description { get; }
+	public override void Execute() => throw new NotSupportedException("Placeholder commands cannot be executed");
 
-	public override void Execute()
-	{
-		throw new NotSupportedException("Placeholder commands cannot be executed");
-	}
-
-	public override void Undo()
-	{
-		throw new NotSupportedException("Placeholder commands cannot be undone");
-	}
+	public override void Undo() => throw new NotSupportedException("Placeholder commands cannot be undone");
 }

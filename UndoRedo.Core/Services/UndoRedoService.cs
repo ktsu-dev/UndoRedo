@@ -2,21 +2,34 @@
 // All rights reserved.
 // Licensed under the MIT license.
 
+namespace ktsu.UndoRedo.Core.Services;
 using ktsu.UndoRedo.Core.Contracts;
 using ktsu.UndoRedo.Core.Models;
-
-namespace ktsu.UndoRedo.Core.Services;
 
 /// <summary>
 /// Main service implementation for undo/redo operations
 /// </summary>
-public sealed class UndoRedoService : IUndoRedoService
+/// <remarks>
+/// Creates a new undo/redo service
+/// </remarks>
+/// <param name="stackManager">Stack manager service</param>
+/// <param name="saveBoundaryManager">Save boundary manager service</param>
+/// <param name="commandMerger">Command merger service</param>
+/// <param name="options">Configuration options</param>
+/// <param name="navigationProvider">Optional navigation provider</param>
+public sealed class UndoRedoService(
+	IStackManager stackManager,
+	ISaveBoundaryManager saveBoundaryManager,
+	ICommandMerger commandMerger,
+	UndoRedoOptions? options = null,
+	INavigationProvider? navigationProvider = null) : IUndoRedoService
 {
-	private readonly IStackManager _stackManager;
-	private readonly ISaveBoundaryManager _saveBoundaryManager;
-	private readonly ICommandMerger _commandMerger;
-	private readonly UndoRedoOptions _options;
-	private INavigationProvider? _navigationProvider;
+	private readonly IStackManager _stackManager = stackManager ?? throw new ArgumentNullException(nameof(stackManager));
+	private readonly ISaveBoundaryManager _saveBoundaryManager = saveBoundaryManager ?? throw new ArgumentNullException(nameof(saveBoundaryManager));
+	private readonly ICommandMerger _commandMerger = commandMerger ?? throw new ArgumentNullException(nameof(commandMerger));
+	private readonly UndoRedoOptions _options = options ?? UndoRedoOptions.Default;
+	private INavigationProvider? _navigationProvider = navigationProvider;
+	private IUndoRedoSerializer? _serializer;
 
 	/// <inheritdoc />
 	public bool CanUndo => _stackManager.CanUndo;
@@ -52,28 +65,6 @@ public sealed class UndoRedoService : IUndoRedoService
 	public event EventHandler<SaveBoundaryCreatedEventArgs>? SaveBoundaryCreated;
 
 	/// <summary>
-	/// Creates a new undo/redo service
-	/// </summary>
-	/// <param name="stackManager">Stack manager service</param>
-	/// <param name="saveBoundaryManager">Save boundary manager service</param>
-	/// <param name="commandMerger">Command merger service</param>
-	/// <param name="options">Configuration options</param>
-	/// <param name="navigationProvider">Optional navigation provider</param>
-	public UndoRedoService(
-		IStackManager stackManager,
-		ISaveBoundaryManager saveBoundaryManager,
-		ICommandMerger commandMerger,
-		UndoRedoOptions? options = null,
-		INavigationProvider? navigationProvider = null)
-	{
-		_stackManager = stackManager ?? throw new ArgumentNullException(nameof(stackManager));
-		_saveBoundaryManager = saveBoundaryManager ?? throw new ArgumentNullException(nameof(saveBoundaryManager));
-		_commandMerger = commandMerger ?? throw new ArgumentNullException(nameof(commandMerger));
-		_options = options ?? UndoRedoOptions.Default;
-		_navigationProvider = navigationProvider;
-	}
-
-	/// <summary>
 	/// Sets the navigation provider
 	/// </summary>
 	/// <param name="navigationProvider">The navigation provider</param>
@@ -87,13 +78,13 @@ public sealed class UndoRedoService : IUndoRedoService
 		// Try to merge with the last command if auto-merge is enabled
 		if (_options.AutoMergeCommands && _stackManager.CanUndo)
 		{
-			var lastCommand = _stackManager.GetCurrentCommand();
+			ICommand? lastCommand = _stackManager.GetCurrentCommand();
 			if (lastCommand != null && _commandMerger.CanMerge(lastCommand, command))
 			{
-				var mergedCommand = _commandMerger.Merge(lastCommand, command);
+				ICommand mergedCommand = _commandMerger.Merge(lastCommand, command);
 
 				// Replace the last command with the merged one
-				var position = _stackManager.CurrentPosition;
+				int position = _stackManager.CurrentPosition;
 				_stackManager.MovePrevious(); // Move back to remove the last command
 				_stackManager.ClearForward(); // Clear the old command
 				_stackManager.AddCommand(mergedCommand); // Add the merged command
@@ -119,7 +110,7 @@ public sealed class UndoRedoService : IUndoRedoService
 		// Trim stack if needed
 		if (_options.MaxStackSize > 0)
 		{
-			var removedCount = _stackManager.TrimToSize(_options.MaxStackSize);
+			int removedCount = _stackManager.TrimToSize(_options.MaxStackSize);
 			if (removedCount > 0)
 			{
 				_saveBoundaryManager.AdjustPositions(-removedCount);
@@ -132,7 +123,7 @@ public sealed class UndoRedoService : IUndoRedoService
 	/// <inheritdoc />
 	public async Task<bool> UndoAsync(bool navigateToChange = true, CancellationToken cancellationToken = default)
 	{
-		var command = _stackManager.MovePrevious();
+		ICommand? command = _stackManager.MovePrevious();
 		if (command == null)
 		{
 			return false;
@@ -143,7 +134,7 @@ public sealed class UndoRedoService : IUndoRedoService
 
 		if (navigateToChange && _options.EnableNavigation && _navigationProvider != null && !string.IsNullOrEmpty(command.NavigationContext))
 		{
-			using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+			using CancellationTokenSource cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
 			cts.CancelAfter(_options.EffectiveNavigationTimeout);
 
 			try
@@ -165,7 +156,7 @@ public sealed class UndoRedoService : IUndoRedoService
 	/// <inheritdoc />
 	public async Task<bool> RedoAsync(bool navigateToChange = true, CancellationToken cancellationToken = default)
 	{
-		var command = _stackManager.MoveNext();
+		ICommand? command = _stackManager.MoveNext();
 		if (command == null)
 		{
 			return false;
@@ -176,7 +167,7 @@ public sealed class UndoRedoService : IUndoRedoService
 
 		if (navigateToChange && _options.EnableNavigation && _navigationProvider != null && !string.IsNullOrEmpty(command.NavigationContext))
 		{
-			using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+			using CancellationTokenSource cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
 			cts.CancelAfter(_options.EffectiveNavigationTimeout);
 
 			try
@@ -198,7 +189,7 @@ public sealed class UndoRedoService : IUndoRedoService
 	/// <inheritdoc />
 	public void MarkAsSaved(string? description = null)
 	{
-		var saveBoundary = _saveBoundaryManager.CreateSaveBoundary(_stackManager.CurrentPosition, description);
+		SaveBoundary saveBoundary = _saveBoundaryManager.CreateSaveBoundary(_stackManager.CurrentPosition, description);
 		SaveBoundaryCreated?.Invoke(this, new SaveBoundaryCreatedEventArgs(saveBoundary));
 	}
 
@@ -226,7 +217,7 @@ public sealed class UndoRedoService : IUndoRedoService
 		ICommand? lastCommand = null;
 		while (_stackManager.CurrentPosition > saveBoundary.Position)
 		{
-			var command = _stackManager.MovePrevious();
+			ICommand? command = _stackManager.MovePrevious();
 			if (command == null)
 			{
 				break;
@@ -238,9 +229,9 @@ public sealed class UndoRedoService : IUndoRedoService
 		}
 
 		if (navigateToLastChange && lastCommand != null && _options.EnableNavigation && _navigationProvider != null &&
-		    !string.IsNullOrEmpty(lastCommand.NavigationContext))
+			!string.IsNullOrEmpty(lastCommand.NavigationContext))
 		{
-			using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+			using CancellationTokenSource cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
 			cts.CancelAfter(_options.EffectiveNavigationTimeout);
 
 			try
@@ -259,9 +250,9 @@ public sealed class UndoRedoService : IUndoRedoService
 	/// <inheritdoc />
 	public IEnumerable<ChangeVisualization> GetChangeVisualizations(int maxItems = 50)
 	{
-		var commands = _stackManager.Commands;
-		var currentPosition = _stackManager.CurrentPosition;
-		var saveBoundaries = _saveBoundaryManager.SaveBoundaries;
+		IReadOnlyList<ICommand> commands = _stackManager.Commands;
+		int currentPosition = _stackManager.CurrentPosition;
+		IReadOnlyList<SaveBoundary> saveBoundaries = _saveBoundaryManager.SaveBoundaries;
 
 		return commands
 			.Take(Math.Min(commands.Count, maxItems))
@@ -271,5 +262,95 @@ public sealed class UndoRedoService : IUndoRedoService
 				index <= currentPosition,
 				saveBoundaries.Any(sb => sb.Position == index)
 			));
+	}
+
+	/// <inheritdoc />
+	public void SetSerializer(IUndoRedoSerializer? serializer) => _serializer = serializer;
+
+	/// <inheritdoc />
+	public async Task<byte[]> SaveStateAsync(CancellationToken cancellationToken = default)
+	{
+		if (_serializer == null)
+		{
+			throw new InvalidOperationException("No serializer configured. Call SetSerializer() first.");
+		}
+
+		return await _serializer.SerializeAsync(
+			_stackManager.Commands,
+			_stackManager.CurrentPosition,
+			_saveBoundaryManager.SaveBoundaries,
+			cancellationToken).ConfigureAwait(false);
+	}
+
+	/// <inheritdoc />
+	public async Task<bool> LoadStateAsync(byte[] data, CancellationToken cancellationToken = default)
+	{
+		if (_serializer == null)
+		{
+			throw new InvalidOperationException("No serializer configured. Call SetSerializer() first.");
+		}
+
+		try
+		{
+			UndoRedoStackState? state = await _serializer.DeserializeAsync(data, cancellationToken).ConfigureAwait(false);
+			if (state == null)
+			{
+				return false;
+			}
+
+			return RestoreFromState(state);
+		}
+		catch
+		{
+			return false;
+		}
+	}
+
+	/// <inheritdoc />
+	public UndoRedoStackState GetCurrentState() => new(
+		_stackManager.Commands.ToList(),
+		_stackManager.CurrentPosition,
+		_saveBoundaryManager.SaveBoundaries.ToList(),
+		"1.0", // Format version
+		DateTime.UtcNow
+	);
+
+	/// <inheritdoc />
+	public bool RestoreFromState(UndoRedoStackState state)
+	{
+		ArgumentNullException.ThrowIfNull(state);
+
+		try
+		{
+			_stackManager.Clear();
+			_saveBoundaryManager.Clear();
+
+			foreach (ICommand command in state.Commands)
+			{
+				_stackManager.AddCommand(command);
+			}
+
+			// Move to the correct position by undoing/redoing as needed
+			while (_stackManager.CurrentPosition > state.CurrentPosition && _stackManager.CanUndo)
+			{
+				_stackManager.MovePrevious();
+			}
+			while (_stackManager.CurrentPosition < state.CurrentPosition && _stackManager.CanRedo)
+			{
+				_stackManager.MoveNext();
+			}
+
+			// Recreate save boundaries by creating them at the stored positions
+			foreach (SaveBoundary boundary in state.SaveBoundaries)
+			{
+				_saveBoundaryManager.CreateSaveBoundary(boundary.Position, boundary.Description);
+			}
+
+			return true;
+		}
+		catch (Exception)
+		{
+			return false;
+		}
 	}
 }

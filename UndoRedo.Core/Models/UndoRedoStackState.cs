@@ -26,7 +26,7 @@ public record UndoRedoStackState(
 	/// <param name="formatVersion">The format version</param>
 	/// <returns>Empty stack state</returns>
 	public static UndoRedoStackState CreateEmpty(string formatVersion) =>
-		new(Array.Empty<ICommand>(), 0, Array.Empty<SaveBoundary>(), formatVersion, DateTime.UtcNow);
+		new([], 0, [], formatVersion, DateTime.UtcNow);
 
 	/// <summary>
 	/// Gets whether this state represents an empty stack

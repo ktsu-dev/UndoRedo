@@ -2,9 +2,8 @@
 // All rights reserved.
 // Licensed under the MIT license.
 
-using ktsu.UndoRedo.Core.Contracts;
-
 namespace ktsu.UndoRedo.Core.Services;
+using ktsu.UndoRedo.Core.Contracts;
 
 /// <summary>
 /// Service for managing the command stack
@@ -12,19 +11,18 @@ namespace ktsu.UndoRedo.Core.Services;
 public sealed class StackManager : IStackManager
 {
 	private readonly List<ICommand> _commands = [];
-	private int _currentPosition = -1;
 
 	/// <inheritdoc />
 	public IReadOnlyList<ICommand> Commands => _commands.AsReadOnly();
 
 	/// <inheritdoc />
-	public int CurrentPosition => _currentPosition;
+	public int CurrentPosition { get; private set; } = -1;
 
 	/// <inheritdoc />
-	public bool CanUndo => _currentPosition >= 0;
+	public bool CanUndo => CurrentPosition >= 0;
 
 	/// <inheritdoc />
-	public bool CanRedo => _currentPosition < _commands.Count - 1;
+	public bool CanRedo => CurrentPosition < _commands.Count - 1;
 
 	/// <inheritdoc />
 	public void AddCommand(ICommand command)
@@ -32,13 +30,13 @@ public sealed class StackManager : IStackManager
 		ArgumentNullException.ThrowIfNull(command);
 
 		// Clear any commands after the current position (we're branching)
-		if (_currentPosition < _commands.Count - 1)
+		if (CurrentPosition < _commands.Count - 1)
 		{
-			_commands.RemoveRange(_currentPosition + 1, _commands.Count - _currentPosition - 1);
+			_commands.RemoveRange(CurrentPosition + 1, _commands.Count - CurrentPosition - 1);
 		}
 
 		_commands.Add(command);
-		_currentPosition++;
+		CurrentPosition++;
 	}
 
 	/// <inheritdoc />
@@ -49,8 +47,8 @@ public sealed class StackManager : IStackManager
 			return null;
 		}
 
-		var command = _commands[_currentPosition];
-		_currentPosition--;
+		ICommand command = _commands[CurrentPosition];
+		CurrentPosition--;
 		return command;
 	}
 
@@ -62,16 +60,16 @@ public sealed class StackManager : IStackManager
 			return null;
 		}
 
-		_currentPosition++;
-		return _commands[_currentPosition];
+		CurrentPosition++;
+		return _commands[CurrentPosition];
 	}
 
 	/// <inheritdoc />
 	public void ClearForward()
 	{
-		if (_currentPosition < _commands.Count - 1)
+		if (CurrentPosition < _commands.Count - 1)
 		{
-			_commands.RemoveRange(_currentPosition + 1, _commands.Count - _currentPosition - 1);
+			_commands.RemoveRange(CurrentPosition + 1, _commands.Count - CurrentPosition - 1);
 		}
 	}
 
@@ -79,7 +77,7 @@ public sealed class StackManager : IStackManager
 	public void Clear()
 	{
 		_commands.Clear();
-		_currentPosition = -1;
+		CurrentPosition = -1;
 	}
 
 	/// <inheritdoc />
@@ -90,21 +88,21 @@ public sealed class StackManager : IStackManager
 			return 0;
 		}
 
-		var removeCount = _commands.Count - maxSize;
+		int removeCount = _commands.Count - maxSize;
 		_commands.RemoveRange(0, removeCount);
-		_currentPosition -= removeCount;
+		CurrentPosition -= removeCount;
 
 		// Ensure position doesn't go negative
-		if (_currentPosition < -1)
+		if (CurrentPosition < -1)
 		{
-			_currentPosition = -1;
+			CurrentPosition = -1;
 		}
 
 		return removeCount;
 	}
 
 	/// <inheritdoc />
-	public ICommand? GetCurrentCommand() => CanUndo ? _commands[_currentPosition] : null;
+	public ICommand? GetCurrentCommand() => CanUndo ? _commands[CurrentPosition] : null;
 
 	/// <inheritdoc />
 	public IEnumerable<ICommand> GetCommandsInRange(int startIndex, int count)
@@ -114,7 +112,7 @@ public sealed class StackManager : IStackManager
 			return [];
 		}
 
-		var endIndex = Math.Min(startIndex + count, _commands.Count);
+		int endIndex = Math.Min(startIndex + count, _commands.Count);
 		return _commands.GetRange(startIndex, endIndex - startIndex);
 	}
 }
