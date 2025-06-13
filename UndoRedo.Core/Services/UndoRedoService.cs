@@ -270,12 +270,9 @@ public sealed class UndoRedoService(
 	/// <inheritdoc />
 	public async Task<byte[]> SaveStateAsync(CancellationToken cancellationToken = default)
 	{
-		if (_serializer == null)
-		{
-			throw new InvalidOperationException("No serializer configured. Call SetSerializer() first.");
-		}
-
-		return await _serializer.SerializeAsync(
+		return _serializer == null
+			? throw new InvalidOperationException("No serializer configured. Call SetSerializer() first.")
+			: await _serializer.SerializeAsync(
 			_stackManager.Commands,
 			_stackManager.CurrentPosition,
 			_saveBoundaryManager.SaveBoundaries,
@@ -293,12 +290,7 @@ public sealed class UndoRedoService(
 		try
 		{
 			UndoRedoStackState? state = await _serializer.DeserializeAsync(data, cancellationToken).ConfigureAwait(false);
-			if (state == null)
-			{
-				return false;
-			}
-
-			return RestoreFromState(state);
+			return state != null && RestoreFromState(state);
 		}
 		catch
 		{
@@ -308,9 +300,9 @@ public sealed class UndoRedoService(
 
 	/// <inheritdoc />
 	public UndoRedoStackState GetCurrentState() => new(
-		_stackManager.Commands.ToList(),
+		[.. _stackManager.Commands],
 		_stackManager.CurrentPosition,
-		_saveBoundaryManager.SaveBoundaries.ToList(),
+		[.. _saveBoundaryManager.SaveBoundaries],
 		"1.0", // Format version
 		DateTime.UtcNow
 	);

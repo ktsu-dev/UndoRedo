@@ -100,7 +100,7 @@ public class JsonUndoRedoSerializer(JsonSerializerOptions? options = null) : IUn
 		if (string.IsNullOrEmpty(serializableCommand.Data))
 		{
 			// Return a placeholder command that can't execute but preserves metadata
-			return new PlaceholderCommand(serializableCommand.Description, serializableCommand.Metadata);
+			return new PlaceholderCommand(serializableCommand.Description, serializableCommand.NavigationContext, serializableCommand.Metadata);
 		}
 
 		// For commands that implement ISerializableCommand, try to reconstruct them
