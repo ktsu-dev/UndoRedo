@@ -1,8 +1,11 @@
-## v1.0.1-pre.1 (prerelease)
+## v1.0.1 (patch)
 
 Changes since v1.0.0:
 
-- Update project configuration and CI/CD settings: modify .editorconfig for variable declaration preferences, enhance .gitignore for SpecStory files, adjust .runsettings for test parallelization, update package versions in Directory.Packages.props, and refine GitHub Actions workflow for better release management and SonarQube integration. ([@matt-edmondson](https://github.com/matt-edmondson))
+- Add serialization support for undo/redo stack state ([@matt-edmondson](https://github.com/matt-edmondson))
+## v1.0.1-pre.1 (prerelease)
+
+Changes since v1.0.0:
 ## v1.0.0 (major)
 
 - Initial commit for UndoRedo ([@matt-edmondson](https://github.com/matt-edmondson))
