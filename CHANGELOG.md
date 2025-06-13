@@ -3,6 +3,7 @@
 Changes since v1.0.1:
 
 - Update package references, improve project structure, and enhance documentation ([@matt-edmondson](https://github.com/matt-edmondson))
+- Add script to automate winget manifest updates ([@matt-edmondson](https://github.com/matt-edmondson))
 - Refactor JsonUndoRedoSerializer and UndoRedoService error handling ([@matt-edmondson](https://github.com/matt-edmondson))
 - Enhance JsonUndoRedoSerializer and UndoRedoService functionality ([@matt-edmondson](https://github.com/matt-edmondson))
 ## v1.0.1 (patch)
