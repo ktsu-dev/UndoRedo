@@ -133,4 +133,40 @@ public interface IUndoRedoService
 	/// <param name="maxItems">Maximum number of items to return</param>
 	/// <returns>Visualization data for changes</returns>
 	public IEnumerable<ChangeVisualization> GetChangeVisualizations(int maxItems = 50);
+
+	/// <summary>
+	/// Sets the serializer to use for persistent stack state
+	/// </summary>
+	/// <param name="serializer">The serializer to use</param>
+	public void SetSerializer(IUndoRedoSerializer? serializer);
+
+	/// <summary>
+	/// Saves the current stack state using the configured serializer
+	/// </summary>
+	/// <param name="cancellationToken">Cancellation token</param>
+	/// <returns>Serialized stack state as byte array</returns>
+	/// <exception cref="InvalidOperationException">Thrown when no serializer is configured</exception>
+	public Task<byte[]> SaveStateAsync(CancellationToken cancellationToken = default);
+
+	/// <summary>
+	/// Loads stack state from serialized data using the configured serializer
+	/// </summary>
+	/// <param name="data">The serialized stack state</param>
+	/// <param name="cancellationToken">Cancellation token</param>
+	/// <returns>True if state was loaded successfully</returns>
+	/// <exception cref="InvalidOperationException">Thrown when no serializer is configured</exception>
+	public Task<bool> LoadStateAsync(byte[] data, CancellationToken cancellationToken = default);
+
+	/// <summary>
+	/// Gets the current stack state for serialization
+	/// </summary>
+	/// <returns>The current stack state</returns>
+	public UndoRedoStackState GetCurrentState();
+
+	/// <summary>
+	/// Restores the stack from a given state
+	/// </summary>
+	/// <param name="state">The state to restore</param>
+	/// <returns>True if restoration was successful</returns>
+	public bool RestoreFromState(UndoRedoStackState state);
 }

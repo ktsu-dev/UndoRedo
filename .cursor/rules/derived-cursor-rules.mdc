@@ -22,6 +22,8 @@ This document outlines the rules, coding standards, workflow guidelines, and bes
 
 ## WORKFLOW & RELEASE RULES
 
+*   After making commits, always push changes to the remote repository: `git push origin main`.
+
 ## DEBUGGING
 
 When running tests, use the following commands:
