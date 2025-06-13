@@ -1,6 +1,7 @@
 <Project Sdk="ktsu.Sdk.Lib">
 
 	<ItemGroup>
+		<PackageReference Include="Microsoft.Extensions.DependencyInjection" />
 		<PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
 	</ItemGroup>
 

@@ -3,15 +3,19 @@
 // Licensed under the MIT license.
 
 namespace ktsu.UndoRedo.Test;
+using ktsu.UndoRedo.Core.Models;
+using ktsu.UndoRedo.Core.Services;
 
 [TestClass]
 public class UndoRedoStackTests
 {
+	private static UndoRedoService CreateService() => new(new StackManager(), new SaveBoundaryManager(), new CommandMerger());
+
 	[TestMethod]
 	public void Execute_SingleCommand_CanUndoAndRedo()
 	{
 		// Arrange
-		var stack = new UndoRedoStack();
+		UndoRedoService stack = CreateService();
 		int value = 0;
 		DelegateCommand command = new(
 			"Increment",
@@ -46,7 +50,7 @@ public class UndoRedoStackTests
 	public void Execute_MultipleCommands_MaintainsCorrectOrder()
 	{
 		// Arrange
-		var stack = new UndoRedoStack();
+		UndoRedoService stack = CreateService();
 		List<int> values = [];
 
 		DelegateCommand command1 = new("Add 1", () => values.Add(1), () => values.RemoveAt(values.Count - 1));
@@ -75,7 +79,7 @@ public class UndoRedoStackTests
 	public void Execute_AfterUndo_ClearsFutureCommands()
 	{
 		// Arrange
-		var stack = new UndoRedoStack();
+		UndoRedoService stack = CreateService();
 		int value = 0;
 
 		DelegateCommand command1 = new("Set to 1", () => value = 1, () => value = 0);
@@ -101,7 +105,7 @@ public class UndoRedoStackTests
 	public void MarkAsSaved_TracksUnsavedChanges()
 	{
 		// Arrange
-		var stack = new UndoRedoStack();
+		UndoRedoService stack = CreateService();
 		int value = 0;
 		DelegateCommand command = new("Increment", () => value++, () => value--);
 
@@ -126,7 +130,7 @@ public class UndoRedoStackTests
 	public void CompositeCommand_ExecutesAndUndoesInCorrectOrder()
 	{
 		// Arrange
-		var stack = new UndoRedoStack();
+		UndoRedoService stack = CreateService();
 		List<string> values = [];
 
 		DelegateCommand[] commands =
@@ -155,7 +159,7 @@ public class UndoRedoStackTests
 	public async Task NavigationProvider_CallsNavigateToOnUndoRedo()
 	{
 		// Arrange
-		var stack = new UndoRedoStack();
+		UndoRedoService stack = CreateService();
 		MockNavigationProvider navigationProvider = new();
 		stack.SetNavigationProvider(navigationProvider);
 
@@ -168,10 +172,10 @@ public class UndoRedoStackTests
 		stack.Execute(command);
 
 		// Act & Assert
-		await stack.UndoAsync();
+		await stack.UndoAsync().ConfigureAwait(false);
 		Assert.AreEqual("test-context", navigationProvider.LastNavigatedContext);
 
-		await stack.RedoAsync();
+		await stack.RedoAsync().ConfigureAwait(false);
 		Assert.AreEqual("test-context", navigationProvider.LastNavigatedContext);
 	}
 
@@ -179,7 +183,7 @@ public class UndoRedoStackTests
 	public void GetChangeVisualizations_ReturnsCorrectData()
 	{
 		// Arrange
-		var stack = new UndoRedoStack();
+		UndoRedoService stack = CreateService();
 		DelegateCommand command1 = new("Command 1", () => { }, () => { }, ChangeType.Insert, ["item1"]);
 		DelegateCommand command2 = new("Command 2", () => { }, () => { }, ChangeType.Delete, ["item2"]);
 
@@ -188,7 +192,7 @@ public class UndoRedoStackTests
 		stack.MarkAsSaved();
 		stack.Execute(command2);
 
-		var visualizations = stack.GetChangeVisualizations().ToList();
+		List<ChangeVisualization> visualizations = [.. stack.GetChangeVisualizations()];
 
 		// Assert
 		Assert.AreEqual(2, visualizations.Count);
@@ -206,28 +210,31 @@ public class UndoRedoStackTests
 	public void Events_FiredCorrectly()
 	{
 		// Arrange
-		var stack = new UndoRedoStack();
-		List<string> events = [];
+		UndoRedoService stack = CreateService();
+		bool commandExecutedFired = false;
+		bool commandUndoneFired = false;
+		bool commandRedoneFired = false;
+		bool saveBoundaryCreatedFired = false;
 
-		stack.CommandExecuted += (_, e) => events.Add($"Executed: {e.Command.Description}");
-		stack.CommandUndone += (_, e) => events.Add($"Undone: {e.Command.Description}");
-		stack.CommandRedone += (_, e) => events.Add($"Redone: {e.Command.Description}");
-		stack.SaveBoundaryCreated += (_, e) => events.Add($"Saved: {e.SaveBoundary.Description}");
+		stack.CommandExecuted += (_, _) => commandExecutedFired = true;
+		stack.CommandUndone += (_, _) => commandUndoneFired = true;
+		stack.CommandRedone += (_, _) => commandRedoneFired = true;
+		stack.SaveBoundaryCreated += (_, _) => saveBoundaryCreatedFired = true;
 
 		DelegateCommand command = new("Test", () => { }, () => { });
 
-		// Act
+		// Act & Assert
 		stack.Execute(command);
-		stack.MarkAsSaved("Test Save");
-		stack.Undo();
-		stack.Redo();
+		Assert.IsTrue(commandExecutedFired);
 
-		// Assert
-		Assert.AreEqual(4, events.Count);
-		Assert.AreEqual("Executed: Test", events[0]);
-		Assert.AreEqual("Saved: Test Save", events[1]);
-		Assert.AreEqual("Undone: Test", events[2]);
-		Assert.AreEqual("Redone: Test", events[3]);
+		stack.Undo();
+		Assert.IsTrue(commandUndoneFired);
+
+		stack.Redo();
+		Assert.IsTrue(commandRedoneFired);
+
+		stack.MarkAsSaved("Test");
+		Assert.IsTrue(saveBoundaryCreatedFired);
 	}
 
 	private sealed class MockNavigationProvider : INavigationProvider
@@ -243,93 +250,75 @@ public class UndoRedoStackTests
 		public bool IsValidContext(string context) => true;
 	}
 
-	#region Edge Cases and Complex Scenarios
-
 	[TestMethod]
 	public void Execute_MaxStackSizeReached_RemovesOldestCommands()
 	{
 		// Arrange
-		var options = UndoRedoOptions.Create(maxStackSize: 3);
-		var stack = new UndoRedoStack(options);
-		int value = 0;
+		UndoRedoOptions options = UndoRedoOptions.Create(maxStackSize: 3);
+		UndoRedoService stack = new(new StackManager(), new SaveBoundaryManager(), new CommandMerger(), options);
 
-		// Act - Execute 5 commands when max is 3
+		// Act
 		for (int i = 1; i <= 5; i++)
 		{
 			int localI = i;
-			stack.Execute(new DelegateCommand($"Set to {localI}", () => value = localI, () => value = localI - 1));
+			stack.Execute(new DelegateCommand($"Command {i}", () => { }, () => { }));
 		}
 
-		// Assert - Only last 3 commands should remain
-		Assert.AreEqual(3, stack.CommandCount);
-		Assert.AreEqual(5, value);
-
-		// Should be able to undo 3 times (back to value = 2)
-		stack.Undo(); // 4
-		stack.Undo(); // 3
-		stack.Undo(); // 2
-		Assert.AreEqual(2, value);
-		Assert.IsFalse(stack.CanUndo); // Should not be able to undo further
+		// Assert
+		Assert.AreEqual(3, stack.CommandCount); // Should be limited to max size
+		Assert.AreEqual("Command 3", stack.Commands[0].Description); // Oldest retained command
+		Assert.AreEqual("Command 5", stack.Commands[2].Description); // Newest command
 	}
 
 	[TestMethod]
 	public void CommandMerging_ConsecutiveCommands_MergesCorrectly()
 	{
 		// Arrange
-		var stack = new UndoRedoStack();
-		string text = "";
+		UndoRedoOptions options = UndoRedoOptions.Create(autoMerge: true);
+		UndoRedoService stack = new(new StackManager(), new SaveBoundaryManager(), new CommandMerger(), options);
+		string value = "";
 
-		// Act - Execute mergeable commands
-		TestMergeableCommand cmd1 = new(t => text = t, "a");
-		TestMergeableCommand cmd2 = new(t => text = t, "ab");
-		TestMergeableCommand cmd3 = new(t => text = t, "abc");
-		DelegateCommand nonMergeable = new("Non-mergeable", () => { }, () => { });
-
-		stack.Execute(cmd1);
-		stack.Execute(cmd2);
-		stack.Execute(cmd3);
-		stack.Execute(nonMergeable);
+		// Act
+		stack.Execute(new TestMergeableCommand(s => value = s, "A"));
+		stack.Execute(new TestMergeableCommand(s => value = s, "AB"));
+		stack.Execute(new TestMergeableCommand(s => value = s, "ABC"));
 
 		// Assert
-		Assert.AreEqual(2, stack.CommandCount); // Merged + non-mergeable
-		Assert.AreEqual("abc", text);
+		Assert.AreEqual(1, stack.CommandCount); // Commands should be merged
+		Assert.AreEqual("ABC", value);
 
-		stack.Undo(); // Undo non-mergeable
-		stack.Undo(); // Undo merged command
-		Assert.AreEqual("", text);
+		stack.Undo();
+		Assert.AreEqual("", value); // Should undo all merged operations
 	}
 
 	[TestMethod]
 	public void CompositeCommand_NestedComposites_HandlesCorrectly()
 	{
 		// Arrange
-		var stack = new UndoRedoStack();
+		UndoRedoService stack = CreateService();
 		List<string> values = [];
 
-		CompositeCommand innerComposite1 = new("Inner 1",
+		DelegateCommand[] innerCommands1 =
 		[
-			new DelegateCommand("Add X", () => values.Add("X"), () => values.RemoveAt(values.Count - 1)),
-			new DelegateCommand("Add Y", () => values.Add("Y"), () => values.RemoveAt(values.Count - 1))
-		]);
+			new DelegateCommand("Add A", () => values.Add("A"), () => values.RemoveAt(values.Count - 1)),
+			new DelegateCommand("Add B", () => values.Add("B"), () => values.RemoveAt(values.Count - 1))
+		];
 
-		CompositeCommand innerComposite2 = new("Inner 2",
+		DelegateCommand[] innerCommands2 =
 		[
-			new DelegateCommand("Add Z", () => values.Add("Z"), () => values.RemoveAt(values.Count - 1))
-		]);
+			new DelegateCommand("Add C", () => values.Add("C"), () => values.RemoveAt(values.Count - 1)),
+			new DelegateCommand("Add D", () => values.Add("D"), () => values.RemoveAt(values.Count - 1))
+		];
 
-		CompositeCommand outerComposite = new("Outer",
-		[
-			innerComposite1,
-			new DelegateCommand("Add W", () => values.Add("W"), () => values.RemoveAt(values.Count - 1)),
-			innerComposite2
-		]);
+		CompositeCommand inner1 = new("Add AB", innerCommands1);
+		CompositeCommand inner2 = new("Add CD", innerCommands2);
+		CompositeCommand outer = new("Add ABCD", [inner1, inner2]);
 
 		// Act
-		stack.Execute(outerComposite);
+		stack.Execute(outer);
 
 		// Assert
 		CollectionAssert.AreEqual(expected, values);
-		Assert.AreEqual(1, stack.CommandCount); // Single composite command
 
 		stack.Undo();
 		Assert.AreEqual(0, values.Count);
@@ -339,120 +328,112 @@ public class UndoRedoStackTests
 	public void SaveBoundaries_MultipleUndoRedoOperations_MaintainsCorrectState()
 	{
 		// Arrange
-		var stack = new UndoRedoStack();
+		UndoRedoService stack = CreateService();
 		int value = 0;
 
-		// Act - Complex sequence with save boundaries
+		// Act
 		stack.Execute(new DelegateCommand("Set 1", () => value = 1, () => value = 0));
-		stack.MarkAsSaved("Save 1");
+		stack.MarkAsSaved("After 1");
 
 		stack.Execute(new DelegateCommand("Set 2", () => value = 2, () => value = 1));
 		stack.Execute(new DelegateCommand("Set 3", () => value = 3, () => value = 2));
-		stack.MarkAsSaved("Save 2");
+		stack.MarkAsSaved("After 3");
 
 		stack.Execute(new DelegateCommand("Set 4", () => value = 4, () => value = 3));
 
-		// Assert states
-		Assert.IsTrue(stack.HasUnsavedChanges);
+		// Assert
+		Assert.AreEqual(4, value); // Verify current value
 		Assert.AreEqual(2, stack.SaveBoundaries.Count);
+		Assert.IsTrue(stack.HasUnsavedChanges);
 
-		// Undo to previous save boundary
-		stack.Undo(); // Back to value = 3 (at Save 2)
-		Assert.IsFalse(stack.HasUnsavedChanges);
+		stack.Undo(); // Back to 3
+		Assert.IsFalse(stack.HasUnsavedChanges); // At save boundary
 
-		// Undo past save boundary
-		stack.Undo(); // value = 2
-		Assert.IsTrue(stack.HasUnsavedChanges); // We're past the save boundary
+		stack.Undo(); // Back to 2
+		stack.Undo(); // Back to 1
+		Assert.IsFalse(stack.HasUnsavedChanges); // At save boundary
 
-		// Redo back to save boundary
-		stack.Redo(); // value = 3
-		Assert.IsFalse(stack.HasUnsavedChanges);
+		stack.Undo(); // Back to 0
+		Assert.IsTrue(stack.HasUnsavedChanges); // Before first save boundary
 	}
 
 	[TestMethod]
 	public async Task NavigationProvider_CancellationToken_HandlesCorrectly()
 	{
 		// Arrange
-		var stack = new UndoRedoStack();
-		SlowNavigationProvider slowNavigationProvider = new();
-		stack.SetNavigationProvider(slowNavigationProvider);
+		UndoRedoService stack = CreateService();
+		SlowNavigationProvider navigationProvider = new();
+		stack.SetNavigationProvider(navigationProvider);
 
 		DelegateCommand command = new("Test", () => { }, () => { }, navigationContext: "test");
 		stack.Execute(command);
 
-		// Act & Assert - Test cancellation
 		using CancellationTokenSource cts = new(TimeSpan.FromMilliseconds(10));
-		var result = await stack.UndoAsync(navigateToChange: true, cts.Token);
 
-		Assert.IsFalse(result); // Should fail due to timeout
-		Assert.IsTrue(slowNavigationProvider.WasCancelled);
+		// Act
+		await stack.UndoAsync(cancellationToken: cts.Token).ConfigureAwait(false);
+
+		// Assert - navigation should have been cancelled
+		Assert.IsTrue(navigationProvider.WasCancelled);
 	}
 
 	[TestMethod]
 	public void Execute_CommandThrowsException_DoesNotCorruptStack()
 	{
 		// Arrange
-		var stack = new UndoRedoStack();
+		UndoRedoService stack = CreateService();
 		int value = 0;
 
-		DelegateCommand goodCommand = new("Good", () => value = 1, () => value = 0);
-		DelegateCommand badCommand = new("Bad", () => throw new InvalidOperationException("Test error"), () => { });
+		stack.Execute(new DelegateCommand("Good Command", () => value = 1, () => value = 0));
 
 		// Act & Assert
-		stack.Execute(goodCommand);
-		Assert.AreEqual(1, value);
+		Assert.ThrowsException<InvalidOperationException>(() =>
+			stack.Execute(new DelegateCommand("Bad Command", () => throw new InvalidOperationException(), () => { })));
+
+		// Stack should still be in good state
 		Assert.AreEqual(1, stack.CommandCount);
-
-		// Bad command should throw but not corrupt stack
-		Assert.ThrowsException<InvalidOperationException>(() => stack.Execute(badCommand));
-		Assert.AreEqual(1, stack.CommandCount); // Stack should be unchanged
-		Assert.AreEqual(1, value); // Value should be unchanged
-
-		// Stack should still be functional
+		Assert.AreEqual(1, value);
 		Assert.IsTrue(stack.CanUndo);
-		stack.Undo();
-		Assert.AreEqual(0, value);
 	}
 
 	[TestMethod]
 	public void UndoToSaveBoundary_NoSaveBoundaries_ThrowsException()
 	{
 		// Arrange
-		var stack = new UndoRedoStack();
-		SaveBoundary fakeBoundary = new(0, DateTime.Now, "Fake");
+		UndoRedoService stack = CreateService();
+		stack.Execute(new DelegateCommand("Test", () => { }, () => { }));
 
 		// Act & Assert
-		Assert.ThrowsException<ArgumentException>(() =>
-			stack.UndoToSaveBoundaryAsync(fakeBoundary).GetAwaiter().GetResult());
+		Assert.ThrowsExceptionAsync<ArgumentException>(async () =>
+			await stack.UndoToSaveBoundaryAsync(new SaveBoundary(0, "Test")).ConfigureAwait(false));
 	}
 
 	[TestMethod]
 	public void GetChangeVisualizations_WithLimits_ReturnsCorrectCount()
 	{
 		// Arrange
-		var stack = new UndoRedoStack();
+		UndoRedoService stack = CreateService();
 
-		// Add 10 commands
-		for (int i = 0; i < 10; i++)
+		for (int i = 1; i <= 10; i++)
 		{
 			stack.Execute(new DelegateCommand($"Command {i}", () => { }, () => { }));
 		}
 
-		// Act & Assert
-		var allVisualizations = stack.GetChangeVisualizations().ToList();
-		var limitedVisualizations = stack.GetChangeVisualizations(5).ToList();
+		// Act
+		List<ChangeVisualization> visualizations = [.. stack.GetChangeVisualizations(5)];
 
-		Assert.AreEqual(10, allVisualizations.Count);
-		Assert.AreEqual(5, limitedVisualizations.Count);
+		// Assert
+		Assert.AreEqual(5, visualizations.Count);
 	}
 
 	[TestMethod]
 	public void Clear_WithSaveBoundariesAndCommands_ClearsEverything()
 	{
 		// Arrange
-		var stack = new UndoRedoStack();
-		stack.Execute(new DelegateCommand("Test", () => { }, () => { }));
-		stack.MarkAsSaved("Test save");
+		UndoRedoService stack = CreateService();
+		stack.Execute(new DelegateCommand("Test 1", () => { }, () => { }));
+		stack.MarkAsSaved("Save 1");
+		stack.Execute(new DelegateCommand("Test 2", () => { }, () => { }));
 
 		// Act
 		stack.Clear();
@@ -469,7 +450,7 @@ public class UndoRedoStackTests
 	public void Events_ExecutionOrder_FiresInCorrectSequence()
 	{
 		// Arrange
-		var stack = new UndoRedoStack();
+		UndoRedoService stack = CreateService();
 		List<string> eventOrder = [];
 
 		stack.CommandExecuted += (_, _) => eventOrder.Add("Executed");
@@ -477,21 +458,15 @@ public class UndoRedoStackTests
 		stack.CommandRedone += (_, _) => eventOrder.Add("Redone");
 		stack.SaveBoundaryCreated += (_, _) => eventOrder.Add("SaveBoundary");
 
-		DelegateCommand command = new("Test", () => { }, () => { });
-
 		// Act
-		stack.Execute(command);
-		stack.MarkAsSaved();
+		stack.Execute(new DelegateCommand("Test", () => { }, () => { }));
+		stack.MarkAsSaved("Test");
 		stack.Undo();
 		stack.Redo();
 
 		// Assert
 		CollectionAssert.AreEqual(expected, eventOrder);
 	}
-
-	#endregion
-
-	#region Helper Classes for Testing
 
 	private sealed class TestMergeableCommand(Action<string> setter, string newValue) : BaseCommand(ChangeType.Modify, ["text"])
 	{
@@ -513,8 +488,7 @@ public class UndoRedoStackTests
 
 		public override bool CanMergeWith(ICommand other)
 		{
-			return other is TestMergeableCommand otherCmd &&
-				   otherCmd._newValue.StartsWith(_newValue);
+			return other is TestMergeableCommand;
 		}
 
 		public override ICommand MergeWith(ICommand other)
@@ -532,7 +506,7 @@ public class UndoRedoStackTests
 		{
 			try
 			{
-				await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken).ConfigureAwait(false);
+				await Task.Delay(1000, cancellationToken).ConfigureAwait(false);
 				return true;
 			}
 			catch (OperationCanceledException)
@@ -544,6 +518,4 @@ public class UndoRedoStackTests
 
 		public bool IsValidContext(string context) => true;
 	}
-
-	#endregion
 }

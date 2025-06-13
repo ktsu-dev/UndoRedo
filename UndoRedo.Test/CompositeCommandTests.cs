@@ -8,7 +8,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using ktsu.UndoRedo.Core;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 [TestClass]
 public class CompositeCommandTests
@@ -171,14 +170,14 @@ public class CompositeCommandTests
 
 		// Act & Assert
 		Assert.AreEqual("Multi-op", composite.Description);
-		Assert.AreEqual("context1", composite.Metadata.NavigationContext);
+		Assert.AreEqual("context1", composite.NavigationContext);
 
 		// Should aggregate all affected items
 		string[] expectedItems = ["item1", "item2", "item3", "item4"];
 		CollectionAssert.AreEquivalent(expectedItems, composite.Metadata.AffectedItems.ToArray());
 
-		// Change type should be mixed for composite
-		Assert.AreEqual(ChangeType.Mixed, composite.Metadata.ChangeType);
+		// Change type should be composite for composite
+		Assert.AreEqual(ChangeType.Composite, composite.Metadata.ChangeType);
 	}
 
 	[TestMethod]

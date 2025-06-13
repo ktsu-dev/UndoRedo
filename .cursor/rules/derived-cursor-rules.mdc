@@ -34,11 +34,14 @@ When running tests, use the following commands:
 *   `dotnet test --verbosity normal --logger "console;verbosity=detailed" | cat` for verbose output.
 *   If facing terminal output issues, check build outputs in `/bin/Debug/net9.0/` to confirm successful build and test execution.
 *   If encountering `CS0101`, `CS0111` errors, carefully review the project structure and ensure there are no duplicate class or interface definitions within the same namespace.
-*   If encountering `CS0246` errors related to missing `IServiceCollection`, ensure the correct using directive (`using Microsoft.Extensions.DependencyInjection;`) is included in the relevant files.
+*   If encountering `CS0246` errors related to missing `IServiceCollection`, ensure the correct using directive (`using Microsoft.Extensions.DependencyInjection;`) is included in the relevant files. Also ensure that `Microsoft.Extensions.DependencyInjection.Extensions` namespace is included via a `using` directive.
 *   If encountering `CS0535` errors, ensure that the class fully implements the interface and all its members.
 *   When working with `IServiceCollection`, if encountering errors related to missing `TryAddSingleton`, `TryAddTransient`, or `TryAddScoped` extension methods, ensure the `Microsoft.Extensions.DependencyInjection.Extensions` namespace is included via a `using` directive.
 *   When validating parameters, always check for null values to prevent `ArgumentNullException`.
+*   If encountering the warning "Unable to find a project to restore!", ensure that the solution file (.sln) exists and is properly configured to reference all projects in the solution. Also ensure that all project files (.csproj) exist and are correctly configured. This warning may be a false positive when using custom MSBuild SDKs in `global.json`. If the build and tests succeed despite the warning, it can be safely ignored. As an alternative, try restoring packages using the individual project files directly: `dotnet restore UndoRedo.Core/UndoRedo.Core.csproj && dotnet restore UndoRedo.Test/UndoRedo.Test.csproj`
 
 ## BEST PRACTICES
 
 *   When validating parameters, always check for null values to prevent `ArgumentNullException`.
+*   Use more specific exception handling instead of generic `catch`.
+*   Apply modern C# pattern matching syntax.

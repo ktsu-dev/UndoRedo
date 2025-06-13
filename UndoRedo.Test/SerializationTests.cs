@@ -3,33 +3,34 @@
 // Licensed under the MIT license.
 
 namespace ktsu.UndoRedo.Test;
-
-using System;
-using System.Collections.Generic;
 using System.Text.Json;
-using System.Threading.Tasks;
-using ktsu.UndoRedo.Core;
 using ktsu.UndoRedo.Core.Models;
 using ktsu.UndoRedo.Core.Services;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 [TestClass]
 public class SerializationTests
 {
+	private static UndoRedoService CreateService() => new(new StackManager(), new SaveBoundaryManager(), new CommandMerger());
+
 	[TestMethod]
 	public async Task JsonSerializer_SerializeEmpty_ReturnsValidData()
 	{
 		// Arrange
 		JsonUndoRedoSerializer serializer = new();
-		List<ICommand> commands = [];
-		List<SaveBoundary> boundaries = [];
 
 		// Act
-		byte[] data = await serializer.SerializeAsync(commands, 0, boundaries).ConfigureAwait(false);
+		byte[] data = await serializer.SerializeAsync([], 0, []).ConfigureAwait(false);
 
 		// Assert
 		Assert.IsNotNull(data);
 		Assert.IsTrue(data.Length > 0);
+
+		// Verify it can be deserialized
+		UndoRedoStackState state = await serializer.DeserializeAsync(data).ConfigureAwait(false);
+		Assert.IsNotNull(state);
+		Assert.AreEqual(0, state.Commands.Count);
+		Assert.AreEqual(0, state.CurrentPosition);
+		Assert.AreEqual(0, state.SaveBoundaries.Count);
 	}
 
 	[TestMethod]
@@ -37,6 +38,7 @@ public class SerializationTests
 	{
 		// Arrange
 		JsonUndoRedoSerializer serializer = new();
+
 		List<ICommand> commands =
 		[
 			new DelegateCommand("Command 1", () => { }, () => { }, ChangeType.Insert, ["item1"]),
@@ -45,7 +47,7 @@ public class SerializationTests
 
 		List<SaveBoundary> boundaries =
 		[
-			new SaveBoundary(1, DateTime.UtcNow, "Save 1")
+			new SaveBoundary(1, "Save 1")
 		];
 
 		// Act
@@ -108,10 +110,10 @@ public class SerializationTests
 	}
 
 	[TestMethod]
-	public async Task UndoRedoStack_SaveLoadState_PreservesStackState()
+	public async Task UndoRedoService_SaveLoadState_PreservesStackState()
 	{
 		// Arrange
-		UndoRedoStack stack = new();
+		UndoRedoService stack = CreateService();
 		stack.SetSerializer(new JsonUndoRedoSerializer());
 
 		int value = 0;
@@ -119,15 +121,18 @@ public class SerializationTests
 		stack.Execute(new DelegateCommand("Set 2", () => value = 2, () => value = 1));
 		stack.MarkAsSaved("Test save");
 		stack.Execute(new DelegateCommand("Set 3", () => value = 3, () => value = 2));
-		stack.Undo(); // Back to value = 2
+		await stack.UndoAsync().ConfigureAwait(false); // Back to value = 2
+
+		// Verify the value for testing purposes
+		Assert.AreEqual(2, value);
 
 		// Act
-		byte[] data = await stack.SaveStateAsync();
+		byte[] data = await stack.SaveStateAsync().ConfigureAwait(false);
 
 		// Create new stack and load state
-		UndoRedoStack newStack = new();
+		UndoRedoService newStack = CreateService();
 		newStack.SetSerializer(new JsonUndoRedoSerializer());
-		bool success = await newStack.LoadStateAsync(data);
+		bool success = await newStack.LoadStateAsync(data).ConfigureAwait(false);
 
 		// Assert
 		Assert.IsTrue(success);
@@ -138,22 +143,22 @@ public class SerializationTests
 	}
 
 	[TestMethod]
-	public async Task UndoRedoStack_NoSerializer_ThrowsInvalidOperationException()
+	public async Task UndoRedoService_NoSerializer_ThrowsInvalidOperationException()
 	{
 		// Arrange
-		UndoRedoStack stack = new();
+		UndoRedoService stack = CreateService();
 		stack.Execute(new DelegateCommand("Test", () => { }, () => { }));
 
 		// Act & Assert
 		await Assert.ThrowsExceptionAsync<InvalidOperationException>(async () =>
-			await stack.SaveStateAsync()).ConfigureAwait(false);
+			await stack.SaveStateAsync().ConfigureAwait(false)).ConfigureAwait(false);
 	}
 
 	[TestMethod]
-	public void UndoRedoStack_GetCurrentState_ReturnsCorrectState()
+	public void UndoRedoService_GetCurrentState_ReturnsCorrectState()
 	{
 		// Arrange
-		UndoRedoStack stack = new();
+		UndoRedoService stack = CreateService();
 		stack.Execute(new DelegateCommand("Command 1", () => { }, () => { }));
 		stack.MarkAsSaved("Save point");
 		stack.Execute(new DelegateCommand("Command 2", () => { }, () => { }));
@@ -171,10 +176,10 @@ public class SerializationTests
 	}
 
 	[TestMethod]
-	public void UndoRedoStack_RestoreFromState_RestoresCorrectly()
+	public void UndoRedoService_RestoreFromState_RestoresCorrectly()
 	{
 		// Arrange
-		UndoRedoStack originalStack = new();
+		UndoRedoService originalStack = CreateService();
 		originalStack.Execute(new DelegateCommand("Command 1", () => { }, () => { }));
 		originalStack.MarkAsSaved("Save point");
 		originalStack.Execute(new DelegateCommand("Command 2", () => { }, () => { }));
@@ -183,7 +188,7 @@ public class SerializationTests
 		UndoRedoStackState state = originalStack.GetCurrentState();
 
 		// Act
-		UndoRedoStack newStack = new();
+		UndoRedoService newStack = CreateService();
 		bool success = newStack.RestoreFromState(state);
 
 		// Assert
@@ -241,14 +246,20 @@ public class SerializationTests
 			new DelegateCommand("Command 3", () => { }, () => { })
 		];
 
+		List<SaveBoundary> boundaries =
+		[
+			new SaveBoundary(1, "Save 1")
+		];
+
 		// Act
-		UndoRedoStackState state = new(commands, 2, [], "v1.0", DateTime.UtcNow);
+		UndoRedoStackState state = new(commands, 2, boundaries, "test-v1.0", DateTime.UtcNow);
 
 		// Assert
 		Assert.IsFalse(state.IsEmpty);
 		Assert.AreEqual(3, state.CommandCount);
-		Assert.IsTrue(state.CanUndo); // Position 2 > 0
-		Assert.IsTrue(state.CanRedo); // Position 2 < 3
+		Assert.AreEqual(2, state.CurrentPosition);
+		Assert.IsTrue(state.CanUndo);
+		Assert.IsTrue(state.CanRedo);
 	}
 
 	private sealed class TestSerializableCommand : BaseCommand, ISerializableCommand
@@ -280,6 +291,7 @@ public class SerializationTests
 
 		public void DeserializeData(string data)
 		{
+			dynamic? obj = JsonSerializer.Deserialize<dynamic>(data);
 			JsonElement element = JsonSerializer.Deserialize<JsonElement>(data);
 			Value = element.GetProperty(nameof(Value)).GetString() ?? string.Empty;
 		}

@@ -1,5 +1,10 @@
 <Project Sdk="ktsu.Sdk.Test">
 
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+  </ItemGroup>
+  
 	<ItemGroup>
 		<ProjectReference Include="..\UndoRedo.Core\UndoRedo.Core.csproj" />
 	</ItemGroup>
