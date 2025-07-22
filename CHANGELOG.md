@@ -1,6 +1,8 @@
-## v1.0.3-pre.1 (prerelease)
+## v1.0.3 (patch)
 
-Changes since v1.0.3-pre.1:
+Changes since v1.0.2:
+
+- Update project configuration and metadata ([@matt-edmondson](https://github.com/matt-edmondson))
 ## v1.0.3-pre.1 (prerelease)
 
 Changes since v1.0.2:
