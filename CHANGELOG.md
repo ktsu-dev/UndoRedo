@@ -1,3 +1,13 @@
+## v1.0.3 (patch)
+
+Changes since v1.0.2:
+
+- Update project configuration and metadata ([@matt-edmondson](https://github.com/matt-edmondson))
+## v1.0.3-pre.1 (prerelease)
+
+Changes since v1.0.2:
+
+- Bump the microsoft group with 2 updates ([@dependabot[bot]](https://github.com/dependabot[bot]))
 ## v1.0.2 (patch)
 
 Changes since v1.0.1:
@@ -6,6 +16,7 @@ Changes since v1.0.1:
 - Add script to automate winget manifest updates ([@matt-edmondson](https://github.com/matt-edmondson))
 - Refactor JsonUndoRedoSerializer and UndoRedoService error handling ([@matt-edmondson](https://github.com/matt-edmondson))
 - Enhance JsonUndoRedoSerializer and UndoRedoService functionality ([@matt-edmondson](https://github.com/matt-edmondson))
+- Fix issues in UndoRedo functionality and tests ([@matt-edmondson](https://github.com/matt-edmondson))
 ## v1.0.1 (patch)
 
 Changes since v1.0.0:
