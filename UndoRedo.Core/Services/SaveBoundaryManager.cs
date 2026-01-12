@@ -82,8 +82,8 @@ public sealed class SaveBoundaryManager : ISaveBoundaryManager
 	/// <inheritdoc />
 	public IEnumerable<ICommand> GetCommandsToUndo(SaveBoundary saveBoundary, int currentPosition, IReadOnlyList<ICommand> commands)
 	{
-		ArgumentNullException.ThrowIfNull(saveBoundary);
-		ArgumentNullException.ThrowIfNull(commands);
+		Guard.ThrowIfNull(saveBoundary);
+		Guard.ThrowIfNull(commands);
 
 		return currentPosition <= saveBoundary.Position
 			? []

@@ -33,7 +33,7 @@ public class JsonUndoRedoSerializer(JsonSerializerOptions? options = null) : IUn
 	/// <inheritdoc />
 	public bool SupportsVersion(string version)
 	{
-		ArgumentNullException.ThrowIfNull(version);
+		Guard.ThrowIfNull(version);
 		return version == FormatVersion || version.StartsWith("json-v1.");
 	}
 
@@ -111,7 +111,7 @@ public class JsonUndoRedoSerializer(JsonSerializerOptions? options = null) : IUn
 		if (commandType != null && typeof(ISerializableCommand).IsAssignableFrom(commandType))
 		{
 			ISerializableCommand? instance = Activator.CreateInstance(commandType) as ISerializableCommand;
-			instance?.DeserializeData(serializableCommand.Data);
+			instance?.DeserializeData(serializableCommand.Data!);
 			return (ICommand)instance!;
 		}
 

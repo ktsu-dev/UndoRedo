@@ -13,8 +13,8 @@ public sealed class CommandMerger : ICommandMerger
 	/// <inheritdoc />
 	public bool CanMerge(ICommand first, ICommand second)
 	{
-		ArgumentNullException.ThrowIfNull(first);
-		ArgumentNullException.ThrowIfNull(second);
+		Guard.ThrowIfNull(first);
+		Guard.ThrowIfNull(second);
 
 		return first.CanMergeWith(second);
 	}
@@ -22,8 +22,8 @@ public sealed class CommandMerger : ICommandMerger
 	/// <inheritdoc />
 	public ICommand Merge(ICommand first, ICommand second)
 	{
-		ArgumentNullException.ThrowIfNull(first);
-		ArgumentNullException.ThrowIfNull(second);
+		Guard.ThrowIfNull(first);
+		Guard.ThrowIfNull(second);
 
 		return !CanMerge(first, second) ? throw new InvalidOperationException("Commands cannot be merged") : first.MergeWith(second);
 	}

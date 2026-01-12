@@ -3,6 +3,7 @@
 // Licensed under the MIT license.
 
 namespace ktsu.UndoRedo.Test;
+using ktsu.UndoRedo.Core;
 using ktsu.UndoRedo.Core.Models;
 using ktsu.UndoRedo.Core.Services;
 

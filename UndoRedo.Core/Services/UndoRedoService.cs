@@ -74,7 +74,7 @@ public sealed class UndoRedoService(
 	/// <inheritdoc />
 	public void Execute(ICommand command)
 	{
-		ArgumentNullException.ThrowIfNull(command);
+		Guard.ThrowIfNull(command);
 
 		// Try to merge with the last command if auto-merge is enabled
 		if (_options.AutoMergeCommands && _stackManager.CanUndo)
@@ -140,7 +140,7 @@ public sealed class UndoRedoService(
 
 			try
 			{
-				await _navigationProvider.NavigateToAsync(command.NavigationContext, cts.Token).ConfigureAwait(false);
+				await _navigationProvider.NavigateToAsync(command.NavigationContext!, cts.Token).ConfigureAwait(false);
 			}
 			catch (OperationCanceledException)
 			{
@@ -173,7 +173,7 @@ public sealed class UndoRedoService(
 
 			try
 			{
-				await _navigationProvider.NavigateToAsync(command.NavigationContext, cts.Token).ConfigureAwait(false);
+				await _navigationProvider.NavigateToAsync(command.NavigationContext!, cts.Token).ConfigureAwait(false);
 			}
 			catch (OperationCanceledException)
 			{
@@ -208,7 +208,7 @@ public sealed class UndoRedoService(
 	/// <inheritdoc />
 	public async Task<bool> UndoToSaveBoundaryAsync(SaveBoundary saveBoundary, bool navigateToLastChange = true, CancellationToken cancellationToken = default)
 	{
-		ArgumentNullException.ThrowIfNull(saveBoundary);
+		Guard.ThrowIfNull(saveBoundary);
 
 		if (_stackManager.CurrentPosition <= saveBoundary.Position)
 		{
@@ -237,7 +237,7 @@ public sealed class UndoRedoService(
 
 			try
 			{
-				await _navigationProvider.NavigateToAsync(lastCommand.NavigationContext, cts.Token).ConfigureAwait(false);
+				await _navigationProvider.NavigateToAsync(lastCommand.NavigationContext!, cts.Token).ConfigureAwait(false);
 			}
 			catch (OperationCanceledException)
 			{
@@ -311,7 +311,7 @@ public sealed class UndoRedoService(
 	/// <inheritdoc />
 	public bool RestoreFromState(UndoRedoStackState state)
 	{
-		ArgumentNullException.ThrowIfNull(state);
+		Guard.ThrowIfNull(state);
 
 		try
 		{

@@ -27,7 +27,7 @@ public sealed class StackManager : IStackManager
 	/// <inheritdoc />
 	public void AddCommand(ICommand command)
 	{
-		ArgumentNullException.ThrowIfNull(command);
+		Guard.ThrowIfNull(command);
 
 		// Clear any commands after the current position (we're branching)
 		if (CurrentPosition < _commands.Count - 1)

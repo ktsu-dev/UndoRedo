@@ -4,6 +4,7 @@
 
 namespace ktsu.UndoRedo.Test;
 using System.Text.Json;
+using ktsu.UndoRedo.Core;
 using ktsu.UndoRedo.Core.Models;
 using ktsu.UndoRedo.Core.Services;
 

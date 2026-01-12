@@ -22,7 +22,7 @@ public static class ServiceCollectionExtensions
 	/// <returns>The service collection for chaining</returns>
 	public static IServiceCollection AddUndoRedo(this IServiceCollection services, UndoRedoOptions? options = null)
 	{
-		ArgumentNullException.ThrowIfNull(services);
+		Guard.ThrowIfNull(services);
 
 		// Register configuration
 		services.TryAddSingleton(options ?? UndoRedoOptions.Default);
@@ -46,8 +46,8 @@ public static class ServiceCollectionExtensions
 	/// <returns>The service collection for chaining</returns>
 	public static IServiceCollection AddUndoRedo(this IServiceCollection services, Action<UndoRedoOptionsBuilder> configureOptions)
 	{
-		ArgumentNullException.ThrowIfNull(services);
-		ArgumentNullException.ThrowIfNull(configureOptions);
+		Guard.ThrowIfNull(services);
+		Guard.ThrowIfNull(configureOptions);
 
 		UndoRedoOptionsBuilder builder = new();
 		configureOptions(builder);
@@ -64,7 +64,7 @@ public static class ServiceCollectionExtensions
 	/// <returns>The service collection for chaining</returns>
 	public static IServiceCollection AddSingletonUndoRedo(this IServiceCollection services, UndoRedoOptions? options = null)
 	{
-		ArgumentNullException.ThrowIfNull(services);
+		Guard.ThrowIfNull(services);
 
 		// Register configuration
 		services.TryAddSingleton(options ?? UndoRedoOptions.Default);
@@ -89,7 +89,7 @@ public static class ServiceCollectionExtensions
 	public static IServiceCollection AddNavigationProvider<TNavigationProvider>(this IServiceCollection services)
 		where TNavigationProvider : class, INavigationProvider
 	{
-		ArgumentNullException.ThrowIfNull(services);
+		Guard.ThrowIfNull(services);
 
 		services.TryAddScoped<INavigationProvider, TNavigationProvider>();
 		return services;
@@ -104,7 +104,7 @@ public static class ServiceCollectionExtensions
 	public static IServiceCollection AddSingletonNavigationProvider<TNavigationProvider>(this IServiceCollection services)
 		where TNavigationProvider : class, INavigationProvider
 	{
-		ArgumentNullException.ThrowIfNull(services);
+		Guard.ThrowIfNull(services);
 
 		services.TryAddSingleton<INavigationProvider, TNavigationProvider>();
 		return services;
