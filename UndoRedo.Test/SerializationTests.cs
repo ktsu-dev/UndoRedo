@@ -3,6 +3,7 @@
 // Licensed under the MIT license.
 
 namespace ktsu.UndoRedo.Test;
+
 using System.Text.Json;
 using ktsu.UndoRedo.Core;
 using ktsu.UndoRedo.Core.Models;
@@ -24,14 +25,14 @@ public class SerializationTests
 
 		// Assert
 		Assert.IsNotNull(data);
-		Assert.IsTrue(data.Length > 0);
+		Assert.IsNotEmpty(data);
 
 		// Verify it can be deserialized
 		UndoRedoStackState state = await serializer.DeserializeAsync(data).ConfigureAwait(false);
 		Assert.IsNotNull(state);
-		Assert.AreEqual(0, state.Commands.Count);
+		Assert.IsEmpty(state.Commands);
 		Assert.AreEqual(0, state.CurrentPosition);
-		Assert.AreEqual(0, state.SaveBoundaries.Count);
+		Assert.IsEmpty(state.SaveBoundaries);
 	}
 
 	[TestMethod]
@@ -56,9 +57,9 @@ public class SerializationTests
 		UndoRedoStackState state = await serializer.DeserializeAsync(data).ConfigureAwait(false);
 
 		// Assert
-		Assert.AreEqual(2, state.Commands.Count);
+		Assert.HasCount(2, state.Commands);
 		Assert.AreEqual(1, state.CurrentPosition);
-		Assert.AreEqual(1, state.SaveBoundaries.Count);
+		Assert.HasCount(1, state.SaveBoundaries);
 		Assert.AreEqual("json-v1.0", state.FormatVersion);
 	}
 
@@ -70,7 +71,7 @@ public class SerializationTests
 		byte[] invalidData = "invalid json data"u8.ToArray();
 
 		// Act & Assert
-		await Assert.ThrowsExceptionAsync<JsonException>(async () =>
+		await Assert.ThrowsExactlyAsync<JsonException>(async () =>
 			await serializer.DeserializeAsync(invalidData).ConfigureAwait(false)).ConfigureAwait(false);
 	}
 
@@ -93,7 +94,7 @@ public class SerializationTests
 		byte[] data = JsonSerializer.SerializeToUtf8Bytes(JsonSerializer.Deserialize<object>(json));
 
 		// Act & Assert
-		await Assert.ThrowsExceptionAsync<NotSupportedException>(async () =>
+		await Assert.ThrowsExactlyAsync<NotSupportedException>(async () =>
 			await serializer.DeserializeAsync(data).ConfigureAwait(false)).ConfigureAwait(false);
 	}
 
@@ -139,7 +140,7 @@ public class SerializationTests
 		Assert.IsTrue(success);
 		Assert.AreEqual(stack.CommandCount, newStack.CommandCount);
 		Assert.AreEqual(stack.CurrentPosition, newStack.CurrentPosition);
-		Assert.AreEqual(stack.SaveBoundaries.Count, newStack.SaveBoundaries.Count);
+		Assert.HasCount(stack.SaveBoundaries.Count, newStack.SaveBoundaries);
 		Assert.AreEqual(stack.HasUnsavedChanges, newStack.HasUnsavedChanges);
 	}
 
@@ -151,7 +152,7 @@ public class SerializationTests
 		stack.Execute(new DelegateCommand("Test", () => { }, () => { }));
 
 		// Act & Assert
-		await Assert.ThrowsExceptionAsync<InvalidOperationException>(async () =>
+		await Assert.ThrowsExactlyAsync<InvalidOperationException>(async () =>
 			await stack.SaveStateAsync().ConfigureAwait(false)).ConfigureAwait(false);
 	}
 
@@ -170,7 +171,7 @@ public class SerializationTests
 		// Assert
 		Assert.AreEqual(2, state.CommandCount);
 		Assert.AreEqual(1, state.CurrentPosition); // Fixed: position is 0-based, after 2 commands it should be 1
-		Assert.AreEqual(1, state.SaveBoundaries.Count);
+		Assert.HasCount(1, state.SaveBoundaries);
 		Assert.IsFalse(state.IsEmpty);
 		Assert.IsTrue(state.CanUndo);
 		Assert.IsFalse(state.CanRedo);
@@ -196,7 +197,7 @@ public class SerializationTests
 		Assert.IsTrue(success);
 		Assert.AreEqual(originalStack.CommandCount, newStack.CommandCount);
 		Assert.AreEqual(originalStack.CurrentPosition, newStack.CurrentPosition);
-		Assert.AreEqual(originalStack.SaveBoundaries.Count, newStack.SaveBoundaries.Count);
+		Assert.HasCount(originalStack.SaveBoundaries.Count, newStack.SaveBoundaries);
 		Assert.AreEqual(originalStack.HasUnsavedChanges, newStack.HasUnsavedChanges);
 	}
 
@@ -215,7 +216,7 @@ public class SerializationTests
 		UndoRedoStackState state = await serializer.DeserializeAsync(data).ConfigureAwait(false);
 
 		// Assert
-		Assert.AreEqual(1, state.Commands.Count);
+		Assert.HasCount(1, state.Commands);
 		TestSerializableCommand deserializedCommand = (TestSerializableCommand)state.Commands[0];
 		Assert.AreEqual("Test Value", deserializedCommand.Value);
 	}
@@ -230,7 +231,7 @@ public class SerializationTests
 		Assert.IsTrue(state.IsEmpty);
 		Assert.AreEqual(0, state.CommandCount);
 		Assert.AreEqual(0, state.CurrentPosition);
-		Assert.AreEqual(0, state.SaveBoundaries.Count);
+		Assert.IsEmpty(state.SaveBoundaries);
 		Assert.IsFalse(state.CanUndo);
 		Assert.IsFalse(state.CanRedo);
 		Assert.AreEqual("test-v1.0", state.FormatVersion);

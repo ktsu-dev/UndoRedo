@@ -3,6 +3,7 @@
 // Licensed under the MIT license.
 
 namespace ktsu.UndoRedo.Core;
+
 using ktsu.UndoRedo.Core.Contracts;
 using ktsu.UndoRedo.Core.Models;
 using ktsu.UndoRedo.Core.Services;
@@ -22,7 +23,7 @@ public static class ServiceCollectionExtensions
 	/// <returns>The service collection for chaining</returns>
 	public static IServiceCollection AddUndoRedo(this IServiceCollection services, UndoRedoOptions? options = null)
 	{
-		Guard.ThrowIfNull(services);
+		Ensure.NotNull(services);
 
 		// Register configuration
 		services.TryAddSingleton(options ?? UndoRedoOptions.Default);
@@ -46,8 +47,8 @@ public static class ServiceCollectionExtensions
 	/// <returns>The service collection for chaining</returns>
 	public static IServiceCollection AddUndoRedo(this IServiceCollection services, Action<UndoRedoOptionsBuilder> configureOptions)
 	{
-		Guard.ThrowIfNull(services);
-		Guard.ThrowIfNull(configureOptions);
+		Ensure.NotNull(services);
+		Ensure.NotNull(configureOptions);
 
 		UndoRedoOptionsBuilder builder = new();
 		configureOptions(builder);
@@ -64,7 +65,7 @@ public static class ServiceCollectionExtensions
 	/// <returns>The service collection for chaining</returns>
 	public static IServiceCollection AddSingletonUndoRedo(this IServiceCollection services, UndoRedoOptions? options = null)
 	{
-		Guard.ThrowIfNull(services);
+		Ensure.NotNull(services);
 
 		// Register configuration
 		services.TryAddSingleton(options ?? UndoRedoOptions.Default);
@@ -89,7 +90,7 @@ public static class ServiceCollectionExtensions
 	public static IServiceCollection AddNavigationProvider<TNavigationProvider>(this IServiceCollection services)
 		where TNavigationProvider : class, INavigationProvider
 	{
-		Guard.ThrowIfNull(services);
+		Ensure.NotNull(services);
 
 		services.TryAddScoped<INavigationProvider, TNavigationProvider>();
 		return services;
@@ -104,7 +105,7 @@ public static class ServiceCollectionExtensions
 	public static IServiceCollection AddSingletonNavigationProvider<TNavigationProvider>(this IServiceCollection services)
 		where TNavigationProvider : class, INavigationProvider
 	{
-		Guard.ThrowIfNull(services);
+		Ensure.NotNull(services);
 
 		services.TryAddSingleton<INavigationProvider, TNavigationProvider>();
 		return services;

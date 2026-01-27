@@ -16,7 +16,7 @@ public class CompositeCommandTests
 	public void CompositeCommand_EmptyCommandList_ThrowsException()
 	{
 		// Act & Assert
-		Assert.ThrowsException<ArgumentException>(() =>
+		Assert.ThrowsExactly<ArgumentException>(() =>
 			new CompositeCommand("Empty", []));
 	}
 
@@ -24,7 +24,7 @@ public class CompositeCommandTests
 	public void CompositeCommand_NullCommandList_ThrowsException()
 	{
 		// Act & Assert
-		Assert.ThrowsException<ArgumentNullException>(() =>
+		Assert.ThrowsExactly<ArgumentNullException>(() =>
 			new CompositeCommand("Null", null!));
 	}
 
@@ -44,10 +44,10 @@ public class CompositeCommandTests
 		CompositeCommand composite = new("Test Composite", commands);
 
 		// Act & Assert
-		Assert.ThrowsException<InvalidOperationException>(composite.Execute);
+		Assert.ThrowsExactly<InvalidOperationException>(composite.Execute);
 
 		// All successful commands should have been rolled back
-		Assert.AreEqual(0, values.Count);
+		Assert.IsEmpty(values);
 	}
 
 	[TestMethod]
@@ -70,8 +70,8 @@ public class CompositeCommandTests
 		]);
 
 		// Act & Assert
-		Assert.ThrowsException<InvalidOperationException>(outerComposite.Execute);
-		Assert.AreEqual(0, values.Count); // Everything should be rolled back
+		Assert.ThrowsExactly<InvalidOperationException>(outerComposite.Execute);
+		Assert.IsEmpty(values); // Everything should be rolled back
 	}
 	private static readonly string[] expected = ["A", "B", "C"];
 
@@ -100,17 +100,17 @@ public class CompositeCommandTests
 
 		// Act
 		composite.Execute();
-		Assert.AreEqual(3, values.Count);
+		Assert.HasCount(3, values);
 		CollectionAssert.AreEqual(expected, values);
 
 		// Make undo fail for middle command
 		shouldFailUndo = true;
 
 		// Assert - Undo should throw but still attempt to undo all commands
-		Assert.ThrowsException<InvalidOperationException>(composite.Undo);
+		Assert.ThrowsExactly<InvalidOperationException>(composite.Undo);
 
 		// Commands should still be partially undone (C and A undone from end, B failed)
-		Assert.AreEqual(1, values.Count);
+		Assert.HasCount(1, values);
 		Assert.AreEqual("A", values[0]);  // A remains because B's undo failed, C was undone, A tried to undo but only removes from end
 	}
 
@@ -194,7 +194,7 @@ public class CompositeCommandTests
 
 		// Act & Assert
 		Assert.IsFalse(composite1.CanMergeWith(composite2));
-		Assert.ThrowsException<NotSupportedException>(() => composite1.MergeWith(composite2));
+		Assert.ThrowsExactly<NotSupportedException>(() => composite1.MergeWith(composite2));
 	}
 
 	[TestMethod]
@@ -221,15 +221,15 @@ public class CompositeCommandTests
 		stopwatch.Stop();
 
 		// Assert
-		Assert.AreEqual(1000, values.Count);
-		Assert.IsTrue(stopwatch.ElapsedMilliseconds < 1000, "Execution should be fast");
+		Assert.HasCount(1000, values);
+		Assert.IsLessThan(1000L, stopwatch.ElapsedMilliseconds, "Execution should be fast");
 
 		// Test undo performance
 		stopwatch.Restart();
 		composite.Undo();
 		stopwatch.Stop();
 
-		Assert.AreEqual(0, values.Count);
-		Assert.IsTrue(stopwatch.ElapsedMilliseconds < 1000, "Undo should be fast");
+		Assert.IsEmpty(values);
+		Assert.IsLessThan(1000L, stopwatch.ElapsedMilliseconds, "Undo should be fast");
 	}
 }

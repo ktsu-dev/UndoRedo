@@ -3,6 +3,7 @@
 // Licensed under the MIT license.
 
 namespace ktsu.UndoRedo.Core.Contracts;
+
 using ktsu.UndoRedo.Core.Models;
 
 /// <summary>

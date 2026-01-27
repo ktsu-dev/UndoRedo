@@ -3,6 +3,7 @@
 // Licensed under the MIT license.
 
 namespace ktsu.UndoRedo.Core.Services;
+
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using ktsu.UndoRedo.Core.Contracts;
@@ -33,7 +34,7 @@ public class JsonUndoRedoSerializer(JsonSerializerOptions? options = null) : IUn
 	/// <inheritdoc />
 	public bool SupportsVersion(string version)
 	{
-		Guard.ThrowIfNull(version);
+		Ensure.NotNull(version);
 		return version == FormatVersion || version.StartsWith("json-v1.");
 	}
 
@@ -122,7 +123,7 @@ public class JsonUndoRedoSerializer(JsonSerializerOptions? options = null) : IUn
 	/// <summary>
 	/// Serializable representation of a command
 	/// </summary>
-	private class SerializableCommand
+	private sealed class SerializableCommand
 	{
 		public string Type { get; set; } = string.Empty;
 		public string Description { get; set; } = string.Empty;
@@ -134,7 +135,7 @@ public class JsonUndoRedoSerializer(JsonSerializerOptions? options = null) : IUn
 	/// <summary>
 	/// Serializable representation of stack state
 	/// </summary>
-	private class SerializableStackState
+	private sealed class SerializableStackState
 	{
 		public List<SerializableCommand> Commands { get; set; } = [];
 		public int CurrentPosition { get; set; }
@@ -165,7 +166,7 @@ public interface ISerializableCommand
 /// <summary>
 /// Placeholder command used when the original command cannot be deserialized
 /// </summary>
-internal class PlaceholderCommand(string description, string? navigationContext, ChangeMetadata metadata) : BaseCommand(metadata.ChangeType, metadata.AffectedItems, navigationContext)
+internal sealed class PlaceholderCommand(string description, string? navigationContext, ChangeMetadata metadata) : BaseCommand(metadata.ChangeType, metadata.AffectedItems, navigationContext)
 {
 	public override string Description { get; } = $"[Placeholder] {description}";
 
