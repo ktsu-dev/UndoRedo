@@ -1,17 +1,19 @@
+## v1.0.3
+
+No significant changes detected since v1.0.3.
 ## v1.0.3 (patch)
 
 Changes since v1.0.2:
 
 - Update documentation files: removed outdated history file, added CLAUDE.md for project guidance ([@matt-edmondson](https://github.com/matt-edmondson))
+- Migrate to dotnet 10 ([@matt-edmondson](https://github.com/matt-edmondson))
 - Refactor project files to standardize SDK usage and update package references ([@matt-edmondson](https://github.com/matt-edmondson))
 - Update Microsoft.Testing.Extensions.CodeCoverage and MSTest packages to latest versions ([@matt-edmondson](https://github.com/matt-edmondson))
 - Update project configuration and metadata ([@matt-edmondson](https://github.com/matt-edmondson))
 - Update project documentation and enhance serialization features ([@matt-edmondson](https://github.com/matt-edmondson))
 ## v1.0.3-pre.1 (prerelease)
 
-Changes since v1.0.2:
-
-- Bump the microsoft group with 2 updates ([@dependabot[bot]](https://github.com/dependabot[bot]))
+Incremental prerelease update.
 ## v1.0.2 (patch)
 
 Changes since v1.0.1:
