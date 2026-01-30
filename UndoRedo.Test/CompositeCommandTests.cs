@@ -193,7 +193,7 @@ public class CompositeCommandTests
 		CompositeCommand composite2 = new("Composite2", commands);
 
 		// Act & Assert
-		Assert.IsFalse(composite1.CanMergeWith(composite2));
+		Assert.IsFalse(composite1.CanMergeWith(composite2), "CompositeCommand should not support merging with other commands");
 		Assert.ThrowsExactly<NotSupportedException>(() => composite1.MergeWith(composite2));
 	}
 
