@@ -2,9 +2,11 @@
 // All rights reserved.
 // Licensed under the MIT license.
 
+[assembly: Parallelize(Scope = ExecutionScope.MethodLevel)]
+
 namespace ktsu.UndoRedo.Test;
-using ktsu.UndoRedo.Core;
-using ktsu.UndoRedo.Core.Models;
+
+using ktsu.UndoRedo.Models;
 using ktsu.UndoRedo.Core.Services;
 
 [TestClass]
@@ -26,23 +28,23 @@ public class UndoRedoStackTests
 			["value"]);
 
 		// Act & Assert
-		Assert.IsFalse(stack.CanUndo);
-		Assert.IsFalse(stack.CanRedo);
+		Assert.IsFalse(stack.CanUndo, "CanUndo should be false when stack is empty");
+		Assert.IsFalse(stack.CanRedo, "CanRedo should be false when stack is empty");
 
 		stack.Execute(command);
 		Assert.AreEqual(1, value);
-		Assert.IsTrue(stack.CanUndo);
-		Assert.IsFalse(stack.CanRedo);
+		Assert.IsTrue(stack.CanUndo, "CanUndo should be true after executing a command");
+		Assert.IsFalse(stack.CanRedo, "CanRedo should be false after executing a command");
 
 		stack.Undo();
 		Assert.AreEqual(0, value);
-		Assert.IsFalse(stack.CanUndo);
-		Assert.IsTrue(stack.CanRedo);
+		Assert.IsFalse(stack.CanUndo, "CanUndo should be false after undoing the only command");
+		Assert.IsTrue(stack.CanRedo, "CanRedo should be true after undoing a command");
 
 		stack.Redo();
 		Assert.AreEqual(1, value);
-		Assert.IsTrue(stack.CanUndo);
-		Assert.IsFalse(stack.CanRedo);
+		Assert.IsTrue(stack.CanUndo, "CanUndo should be true after redoing a command");
+		Assert.IsFalse(stack.CanRedo, "CanRedo should be false after redoing the last command");
 	}
 	private static readonly int[] expected = [1, 2];
 	private static readonly int[] expectedArray = [1];
@@ -99,8 +101,8 @@ public class UndoRedoStackTests
 		// Assert
 		Assert.AreEqual(2, stack.CommandCount);
 		Assert.AreEqual(3, value);
-		Assert.IsTrue(stack.CanUndo);
-		Assert.IsFalse(stack.CanRedo);
+		Assert.IsTrue(stack.CanUndo, "CanUndo should be true after executing commands");
+		Assert.IsFalse(stack.CanRedo, "CanRedo should be false when future commands have been cleared");
 	}
 
 	[TestMethod]
@@ -112,20 +114,20 @@ public class UndoRedoStackTests
 		DelegateCommand command = new("Increment", () => value++, () => value--);
 
 		// Act & Assert
-		Assert.IsFalse(stack.HasUnsavedChanges);
+		Assert.IsFalse(stack.HasUnsavedChanges, "HasUnsavedChanges should be false when stack is empty");
 
 		stack.Execute(command);
-		Assert.IsTrue(stack.HasUnsavedChanges);
+		Assert.IsTrue(stack.HasUnsavedChanges, "HasUnsavedChanges should be true after executing a command");
 
 		stack.MarkAsSaved("Saved at 1");
-		Assert.IsFalse(stack.HasUnsavedChanges);
-		Assert.AreEqual(1, stack.SaveBoundaries.Count);
+		Assert.IsFalse(stack.HasUnsavedChanges, "HasUnsavedChanges should be false after marking as saved");
+		Assert.HasCount(1, stack.SaveBoundaries);
 
 		stack.Execute(command);
-		Assert.IsTrue(stack.HasUnsavedChanges);
+		Assert.IsTrue(stack.HasUnsavedChanges, "HasUnsavedChanges should be true after executing a command past save boundary");
 
 		stack.Undo();
-		Assert.IsFalse(stack.HasUnsavedChanges); // Back to save boundary
+		Assert.IsFalse(stack.HasUnsavedChanges, "HasUnsavedChanges should be false when back at save boundary");
 	}
 
 	[TestMethod]
@@ -152,7 +154,7 @@ public class UndoRedoStackTests
 		CollectionAssert.AreEqual(expectedComposite, values);
 
 		stack.Undo();
-		Assert.AreEqual(0, values.Count);
+		Assert.IsEmpty(values);
 
 		stack.Redo();
 		CollectionAssert.AreEqual(expectedComposite, values);
@@ -198,15 +200,15 @@ public class UndoRedoStackTests
 		List<ChangeVisualization> visualizations = [.. stack.GetChangeVisualizations()];
 
 		// Assert
-		Assert.AreEqual(2, visualizations.Count);
+		Assert.HasCount(2, visualizations);
 
 		Assert.AreEqual("Command 1", visualizations[0].Command.Description);
-		Assert.IsTrue(visualizations[0].IsExecuted);
-		Assert.IsTrue(visualizations[0].HasSaveBoundary);
+		Assert.IsTrue(visualizations[0].IsExecuted, "First command should be marked as executed");
+		Assert.IsTrue(visualizations[0].HasSaveBoundary, "First command should have a save boundary");
 
 		Assert.AreEqual("Command 2", visualizations[1].Command.Description);
-		Assert.IsTrue(visualizations[1].IsExecuted);
-		Assert.IsFalse(visualizations[1].HasSaveBoundary);
+		Assert.IsTrue(visualizations[1].IsExecuted, "Second command should be marked as executed");
+		Assert.IsFalse(visualizations[1].HasSaveBoundary, "Second command should not have a save boundary");
 	}
 
 	[TestMethod]
@@ -228,16 +230,16 @@ public class UndoRedoStackTests
 
 		// Act & Assert
 		stack.Execute(command);
-		Assert.IsTrue(commandExecutedFired);
+		Assert.IsTrue(commandExecutedFired, "CommandExecuted event should fire when executing a command");
 
 		stack.Undo();
-		Assert.IsTrue(commandUndoneFired);
+		Assert.IsTrue(commandUndoneFired, "CommandUndone event should fire when undoing a command");
 
 		stack.Redo();
-		Assert.IsTrue(commandRedoneFired);
+		Assert.IsTrue(commandRedoneFired, "CommandRedone event should fire when redoing a command");
 
 		stack.MarkAsSaved("Test");
-		Assert.IsTrue(saveBoundaryCreatedFired);
+		Assert.IsTrue(saveBoundaryCreatedFired, "SaveBoundaryCreated event should fire when marking as saved");
 	}
 
 	private sealed class MockNavigationProvider : INavigationProvider
@@ -325,7 +327,7 @@ public class UndoRedoStackTests
 		CollectionAssert.AreEqual(expectedNested, values);
 
 		stack.Undo();
-		Assert.AreEqual(0, values.Count);
+		Assert.IsEmpty(values);
 	}
 
 	[TestMethod]
@@ -347,18 +349,18 @@ public class UndoRedoStackTests
 
 		// Assert
 		Assert.AreEqual(4, value); // Verify current value
-		Assert.AreEqual(2, stack.SaveBoundaries.Count);
-		Assert.IsTrue(stack.HasUnsavedChanges);
+		Assert.HasCount(2, stack.SaveBoundaries);
+		Assert.IsTrue(stack.HasUnsavedChanges, "HasUnsavedChanges should be true after executing commands past save boundary");
 
 		stack.Undo(); // Back to 3
-		Assert.IsFalse(stack.HasUnsavedChanges); // At save boundary
+		Assert.IsFalse(stack.HasUnsavedChanges, "HasUnsavedChanges should be false when at save boundary");
 
 		stack.Undo(); // Back to 2
 		stack.Undo(); // Back to 1
-		Assert.IsFalse(stack.HasUnsavedChanges); // At save boundary
+		Assert.IsFalse(stack.HasUnsavedChanges, "HasUnsavedChanges should be false when at earlier save boundary");
 
 		stack.Undo(); // Back to 0
-		Assert.IsTrue(stack.HasUnsavedChanges); // Before first save boundary
+		Assert.IsTrue(stack.HasUnsavedChanges, "HasUnsavedChanges should be true before first save boundary");
 	}
 
 	[TestMethod]
@@ -378,7 +380,7 @@ public class UndoRedoStackTests
 		await stack.UndoAsync(cancellationToken: cts.Token).ConfigureAwait(false);
 
 		// Assert - navigation should have been cancelled
-		Assert.IsTrue(navigationProvider.WasCancelled);
+		Assert.IsTrue(navigationProvider.WasCancelled, "Navigation should have been cancelled due to timeout");
 	}
 
 	[TestMethod]
@@ -391,25 +393,29 @@ public class UndoRedoStackTests
 		stack.Execute(new DelegateCommand("Good Command", () => value = 1, () => value = 0));
 
 		// Act & Assert
-		Assert.ThrowsException<InvalidOperationException>(() =>
+		Assert.ThrowsExactly<InvalidOperationException>(() =>
 			stack.Execute(new DelegateCommand("Bad Command", () => throw new InvalidOperationException(), () => { })));
 
 		// Stack should still be in good state
 		Assert.AreEqual(1, stack.CommandCount);
 		Assert.AreEqual(1, value);
-		Assert.IsTrue(stack.CanUndo);
+		Assert.IsTrue(stack.CanUndo, "CanUndo should remain true after failed command execution");
 	}
 
 	[TestMethod]
-	public void UndoToSaveBoundary_NoSaveBoundaries_ThrowsException()
+	public async Task UndoToSaveBoundary_WhenAlreadyAtPosition_ReturnsFalse()
 	{
 		// Arrange
 		UndoRedoService stack = CreateService();
 		stack.Execute(new DelegateCommand("Test", () => { }, () => { }));
 
-		// Act & Assert
-		Assert.ThrowsExceptionAsync<ArgumentException>(async () =>
-			await stack.UndoToSaveBoundaryAsync(new SaveBoundary(0, "Test")).ConfigureAwait(false));
+		// Act - Try to undo to position 0, but we're already at position 0
+		// (CurrentPosition starts at -1 and becomes 0 after first command)
+		bool result = await stack.UndoToSaveBoundaryAsync(new SaveBoundary(0, "Test")).ConfigureAwait(false);
+
+		// Assert - Should return false since there's nothing to undo to reach position 0
+		Assert.IsFalse(result, "UndoToSaveBoundary should return false when already at target position");
+		Assert.AreEqual(0, stack.CurrentPosition);
 	}
 
 	[TestMethod]
@@ -427,7 +433,7 @@ public class UndoRedoStackTests
 		List<ChangeVisualization> visualizations = [.. stack.GetChangeVisualizations(5)];
 
 		// Assert
-		Assert.AreEqual(5, visualizations.Count);
+		Assert.HasCount(5, visualizations);
 	}
 
 	[TestMethod]
@@ -444,10 +450,10 @@ public class UndoRedoStackTests
 
 		// Assert
 		Assert.AreEqual(0, stack.CommandCount);
-		Assert.AreEqual(0, stack.SaveBoundaries.Count);
-		Assert.IsFalse(stack.CanUndo);
-		Assert.IsFalse(stack.CanRedo);
-		Assert.IsFalse(stack.HasUnsavedChanges);
+		Assert.IsEmpty(stack.SaveBoundaries);
+		Assert.IsFalse(stack.CanUndo, "CanUndo should be false after clearing the stack");
+		Assert.IsFalse(stack.CanRedo, "CanRedo should be false after clearing the stack");
+		Assert.IsFalse(stack.HasUnsavedChanges, "HasUnsavedChanges should be false after clearing the stack");
 	}
 
 	[TestMethod]

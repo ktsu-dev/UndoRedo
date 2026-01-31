@@ -3,9 +3,9 @@
 // Licensed under the MIT license.
 
 namespace ktsu.UndoRedo.Test;
+
 using System.Text.Json;
-using ktsu.UndoRedo.Core;
-using ktsu.UndoRedo.Core.Models;
+using ktsu.UndoRedo.Models;
 using ktsu.UndoRedo.Core.Services;
 
 [TestClass]
@@ -24,14 +24,14 @@ public class SerializationTests
 
 		// Assert
 		Assert.IsNotNull(data);
-		Assert.IsTrue(data.Length > 0);
+		Assert.IsNotEmpty(data);
 
 		// Verify it can be deserialized
 		UndoRedoStackState state = await serializer.DeserializeAsync(data).ConfigureAwait(false);
 		Assert.IsNotNull(state);
-		Assert.AreEqual(0, state.Commands.Count);
+		Assert.IsEmpty(state.Commands);
 		Assert.AreEqual(0, state.CurrentPosition);
-		Assert.AreEqual(0, state.SaveBoundaries.Count);
+		Assert.IsEmpty(state.SaveBoundaries);
 	}
 
 	[TestMethod]
@@ -56,9 +56,9 @@ public class SerializationTests
 		UndoRedoStackState state = await serializer.DeserializeAsync(data).ConfigureAwait(false);
 
 		// Assert
-		Assert.AreEqual(2, state.Commands.Count);
+		Assert.HasCount(2, state.Commands);
 		Assert.AreEqual(1, state.CurrentPosition);
-		Assert.AreEqual(1, state.SaveBoundaries.Count);
+		Assert.HasCount(1, state.SaveBoundaries);
 		Assert.AreEqual("json-v1.0", state.FormatVersion);
 	}
 
@@ -70,7 +70,7 @@ public class SerializationTests
 		byte[] invalidData = "invalid json data"u8.ToArray();
 
 		// Act & Assert
-		await Assert.ThrowsExceptionAsync<JsonException>(async () =>
+		await Assert.ThrowsExactlyAsync<JsonException>(async () =>
 			await serializer.DeserializeAsync(invalidData).ConfigureAwait(false)).ConfigureAwait(false);
 	}
 
@@ -93,7 +93,7 @@ public class SerializationTests
 		byte[] data = JsonSerializer.SerializeToUtf8Bytes(JsonSerializer.Deserialize<object>(json));
 
 		// Act & Assert
-		await Assert.ThrowsExceptionAsync<NotSupportedException>(async () =>
+		await Assert.ThrowsExactlyAsync<NotSupportedException>(async () =>
 			await serializer.DeserializeAsync(data).ConfigureAwait(false)).ConfigureAwait(false);
 	}
 
@@ -104,10 +104,10 @@ public class SerializationTests
 		JsonUndoRedoSerializer serializer = new();
 
 		// Act & Assert
-		Assert.IsTrue(serializer.SupportsVersion("json-v1.0"));
-		Assert.IsTrue(serializer.SupportsVersion("json-v1.1"));
-		Assert.IsFalse(serializer.SupportsVersion("xml-v1.0"));
-		Assert.IsFalse(serializer.SupportsVersion("json-v2.0"));
+		Assert.IsTrue(serializer.SupportsVersion("json-v1.0"), "Serializer should support json-v1.0 format");
+		Assert.IsTrue(serializer.SupportsVersion("json-v1.1"), "Serializer should support json-v1.1 format");
+		Assert.IsFalse(serializer.SupportsVersion("xml-v1.0"), "Serializer should not support xml-v1.0 format");
+		Assert.IsFalse(serializer.SupportsVersion("json-v2.0"), "Serializer should not support json-v2.0 format");
 	}
 
 	[TestMethod]
@@ -136,10 +136,10 @@ public class SerializationTests
 		bool success = await newStack.LoadStateAsync(data).ConfigureAwait(false);
 
 		// Assert
-		Assert.IsTrue(success);
+		Assert.IsTrue(success, "LoadStateAsync should return true on successful load");
 		Assert.AreEqual(stack.CommandCount, newStack.CommandCount);
 		Assert.AreEqual(stack.CurrentPosition, newStack.CurrentPosition);
-		Assert.AreEqual(stack.SaveBoundaries.Count, newStack.SaveBoundaries.Count);
+		Assert.HasCount(stack.SaveBoundaries.Count, newStack.SaveBoundaries);
 		Assert.AreEqual(stack.HasUnsavedChanges, newStack.HasUnsavedChanges);
 	}
 
@@ -151,7 +151,7 @@ public class SerializationTests
 		stack.Execute(new DelegateCommand("Test", () => { }, () => { }));
 
 		// Act & Assert
-		await Assert.ThrowsExceptionAsync<InvalidOperationException>(async () =>
+		await Assert.ThrowsExactlyAsync<InvalidOperationException>(async () =>
 			await stack.SaveStateAsync().ConfigureAwait(false)).ConfigureAwait(false);
 	}
 
@@ -170,10 +170,10 @@ public class SerializationTests
 		// Assert
 		Assert.AreEqual(2, state.CommandCount);
 		Assert.AreEqual(1, state.CurrentPosition); // Fixed: position is 0-based, after 2 commands it should be 1
-		Assert.AreEqual(1, state.SaveBoundaries.Count);
-		Assert.IsFalse(state.IsEmpty);
-		Assert.IsTrue(state.CanUndo);
-		Assert.IsFalse(state.CanRedo);
+		Assert.HasCount(1, state.SaveBoundaries);
+		Assert.IsFalse(state.IsEmpty, "State should not be empty when commands have been executed");
+		Assert.IsTrue(state.CanUndo, "State should indicate CanUndo when commands have been executed");
+		Assert.IsFalse(state.CanRedo, "State should indicate CanRedo is false when at end of command stack");
 	}
 
 	[TestMethod]
@@ -193,10 +193,10 @@ public class SerializationTests
 		bool success = newStack.RestoreFromState(state);
 
 		// Assert
-		Assert.IsTrue(success);
+		Assert.IsTrue(success, "RestoreFromState should return true on successful restore");
 		Assert.AreEqual(originalStack.CommandCount, newStack.CommandCount);
 		Assert.AreEqual(originalStack.CurrentPosition, newStack.CurrentPosition);
-		Assert.AreEqual(originalStack.SaveBoundaries.Count, newStack.SaveBoundaries.Count);
+		Assert.HasCount(originalStack.SaveBoundaries.Count, newStack.SaveBoundaries);
 		Assert.AreEqual(originalStack.HasUnsavedChanges, newStack.HasUnsavedChanges);
 	}
 
@@ -215,7 +215,7 @@ public class SerializationTests
 		UndoRedoStackState state = await serializer.DeserializeAsync(data).ConfigureAwait(false);
 
 		// Assert
-		Assert.AreEqual(1, state.Commands.Count);
+		Assert.HasCount(1, state.Commands);
 		TestSerializableCommand deserializedCommand = (TestSerializableCommand)state.Commands[0];
 		Assert.AreEqual("Test Value", deserializedCommand.Value);
 	}
@@ -227,12 +227,12 @@ public class SerializationTests
 		UndoRedoStackState state = UndoRedoStackState.CreateEmpty("test-v1.0");
 
 		// Assert
-		Assert.IsTrue(state.IsEmpty);
+		Assert.IsTrue(state.IsEmpty, "Empty state should report IsEmpty as true");
 		Assert.AreEqual(0, state.CommandCount);
 		Assert.AreEqual(0, state.CurrentPosition);
-		Assert.AreEqual(0, state.SaveBoundaries.Count);
-		Assert.IsFalse(state.CanUndo);
-		Assert.IsFalse(state.CanRedo);
+		Assert.IsEmpty(state.SaveBoundaries);
+		Assert.IsFalse(state.CanUndo, "Empty state should not allow undo");
+		Assert.IsFalse(state.CanRedo, "Empty state should not allow redo");
 		Assert.AreEqual("test-v1.0", state.FormatVersion);
 	}
 
@@ -256,11 +256,11 @@ public class SerializationTests
 		UndoRedoStackState state = new(commands, 2, boundaries, "test-v1.0", DateTime.UtcNow);
 
 		// Assert
-		Assert.IsFalse(state.IsEmpty);
+		Assert.IsFalse(state.IsEmpty, "State with commands should not be empty");
 		Assert.AreEqual(3, state.CommandCount);
 		Assert.AreEqual(2, state.CurrentPosition);
-		Assert.IsTrue(state.CanUndo);
-		Assert.IsFalse(state.CanRedo); // Fixed: at position 2 with 3 commands (0,1,2), cannot redo
+		Assert.IsTrue(state.CanUndo, "State should allow undo when there are commands");
+		Assert.IsFalse(state.CanRedo, "State should not allow redo when at end of command stack");
 	}
 
 	private sealed class TestSerializableCommand : BaseCommand, ISerializableCommand

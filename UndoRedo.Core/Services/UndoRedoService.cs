@@ -3,9 +3,10 @@
 // Licensed under the MIT license.
 
 namespace ktsu.UndoRedo.Core.Services;
+
 using System.Text.Json;
-using ktsu.UndoRedo.Core.Contracts;
-using ktsu.UndoRedo.Core.Models;
+using ktsu.UndoRedo.Contracts;
+using ktsu.UndoRedo.Models;
 
 /// <summary>
 /// Main service implementation for undo/redo operations
@@ -25,9 +26,9 @@ public sealed class UndoRedoService(
 	UndoRedoOptions? options = null,
 	INavigationProvider? navigationProvider = null) : IUndoRedoService
 {
-	private readonly IStackManager _stackManager = stackManager ?? throw new ArgumentNullException(nameof(stackManager));
-	private readonly ISaveBoundaryManager _saveBoundaryManager = saveBoundaryManager ?? throw new ArgumentNullException(nameof(saveBoundaryManager));
-	private readonly ICommandMerger _commandMerger = commandMerger ?? throw new ArgumentNullException(nameof(commandMerger));
+	private readonly IStackManager _stackManager = Ensure.NotNull(stackManager);
+	private readonly ISaveBoundaryManager _saveBoundaryManager = Ensure.NotNull(saveBoundaryManager);
+	private readonly ICommandMerger _commandMerger = Ensure.NotNull(commandMerger);
 	private readonly UndoRedoOptions _options = options ?? UndoRedoOptions.Default;
 	private INavigationProvider? _navigationProvider = navigationProvider;
 	private IUndoRedoSerializer? _serializer;
@@ -74,7 +75,7 @@ public sealed class UndoRedoService(
 	/// <inheritdoc />
 	public void Execute(ICommand command)
 	{
-		Guard.ThrowIfNull(command);
+		Ensure.NotNull(command);
 
 		// Try to merge with the last command if auto-merge is enabled
 		if (_options.AutoMergeCommands && _stackManager.CanUndo)
@@ -208,7 +209,7 @@ public sealed class UndoRedoService(
 	/// <inheritdoc />
 	public async Task<bool> UndoToSaveBoundaryAsync(SaveBoundary saveBoundary, bool navigateToLastChange = true, CancellationToken cancellationToken = default)
 	{
-		Guard.ThrowIfNull(saveBoundary);
+		Ensure.NotNull(saveBoundary);
 
 		if (_stackManager.CurrentPosition <= saveBoundary.Position)
 		{
@@ -311,7 +312,7 @@ public sealed class UndoRedoService(
 	/// <inheritdoc />
 	public bool RestoreFromState(UndoRedoStackState state)
 	{
-		Guard.ThrowIfNull(state);
+		Ensure.NotNull(state);
 
 		try
 		{

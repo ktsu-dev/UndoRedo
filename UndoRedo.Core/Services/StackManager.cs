@@ -3,7 +3,8 @@
 // Licensed under the MIT license.
 
 namespace ktsu.UndoRedo.Core.Services;
-using ktsu.UndoRedo.Core.Contracts;
+
+using ktsu.UndoRedo.Contracts;
 
 /// <summary>
 /// Service for managing the command stack
@@ -27,7 +28,7 @@ public sealed class StackManager : IStackManager
 	/// <inheritdoc />
 	public void AddCommand(ICommand command)
 	{
-		Guard.ThrowIfNull(command);
+		Ensure.NotNull(command);
 
 		// Clear any commands after the current position (we're branching)
 		if (CurrentPosition < _commands.Count - 1)

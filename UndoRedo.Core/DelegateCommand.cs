@@ -26,8 +26,8 @@ public sealed class DelegateCommand(
 	IReadOnlyDictionary<string, object>? customData = null)
 	: BaseCommand(changeType, affectedItems ?? [], navigationContext, size, customData)
 {
-	private readonly Action _executeAction = executeAction ?? throw new ArgumentNullException(nameof(executeAction));
-	private readonly Action _undoAction = undoAction ?? throw new ArgumentNullException(nameof(undoAction));
+	private readonly Action _executeAction = Ensure.NotNull(executeAction);
+	private readonly Action _undoAction = Ensure.NotNull(undoAction);
 
 	/// <inheritdoc />
 	public override string Description { get; } = description;

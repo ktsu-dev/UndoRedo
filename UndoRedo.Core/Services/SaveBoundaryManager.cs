@@ -3,7 +3,8 @@
 // Licensed under the MIT license.
 
 namespace ktsu.UndoRedo.Core.Services;
-using ktsu.UndoRedo.Core.Contracts;
+
+using ktsu.UndoRedo.Contracts;
 
 /// <summary>
 /// Service for managing save boundaries
@@ -82,8 +83,8 @@ public sealed class SaveBoundaryManager : ISaveBoundaryManager
 	/// <inheritdoc />
 	public IEnumerable<ICommand> GetCommandsToUndo(SaveBoundary saveBoundary, int currentPosition, IReadOnlyList<ICommand> commands)
 	{
-		Guard.ThrowIfNull(saveBoundary);
-		Guard.ThrowIfNull(commands);
+		Ensure.NotNull(saveBoundary);
+		Ensure.NotNull(commands);
 
 		return currentPosition <= saveBoundary.Position
 			? []
