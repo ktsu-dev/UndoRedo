@@ -2,7 +2,7 @@
 // All rights reserved.
 // Licensed under the MIT license.
 
-namespace ktsu.UndoRedo.Core.Contracts;
+namespace ktsu.UndoRedo.Contracts;
 
 /// <summary>
 /// Service for managing save boundaries

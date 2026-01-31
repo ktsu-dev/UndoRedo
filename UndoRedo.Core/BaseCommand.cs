@@ -2,7 +2,7 @@
 // All rights reserved.
 // Licensed under the MIT license.
 
-namespace ktsu.UndoRedo.Core;
+namespace ktsu.UndoRedo;
 
 /// <summary>
 /// Base implementation of ICommand with common functionality

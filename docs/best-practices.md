@@ -1,3 +1,9 @@
+---
+title: "Best Practices"
+description: "Recommended patterns, common pitfalls to avoid, and best practices for using the UndoRedo library effectively"
+status: draft
+---
+
 # Best Practices
 
 This document outlines recommended patterns, common pitfalls to avoid, and best practices for using the UndoRedo library effectively.

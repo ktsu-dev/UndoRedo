@@ -59,23 +59,14 @@ public class MyService
 
 ### 📋 API Reference
 
+-   **[API Reference](api-reference.md)** - Complete API documentation for all classes and interfaces
 -   **[Contracts](contracts.md)** - Interface definitions and their responsibilities
--   **[Models](models.md)** - Data models and their purposes
--   **[Services](services.md)** - Service implementations and their behaviors
--   **[Commands](commands.md)** - Command types and creation patterns
+-   **[Serialization](serialization.md)** - Serialization and persistence guide
 
 ### 🔧 Advanced Topics
 
--   **[Advanced Usage](advanced-usage.md)** - Complex scenarios and customization
--   **[Navigation Integration](navigation-integration.md)** - UI navigation setup and patterns
--   **[Testing Guide](testing-guide.md)** - Testing strategies and examples
--   **[Performance Guide](performance-guide.md)** - Optimization and performance considerations
-
-### 📚 Examples & Tutorials
-
--   **[Examples](examples.md)** - Complete working examples
--   **[Migration Guide](migration-guide.md)** - Migrating from older versions
--   **[Troubleshooting](troubleshooting.md)** - Common issues and solutions
+-   **[Tutorial: Advanced Scenarios](tutorial-advanced-scenarios.md)** - Complex scenarios and real-world examples
+-   **[Best Practices](best-practices.md)** - Recommended patterns and common pitfalls to avoid
 
 ## Key Features
 
@@ -267,18 +258,18 @@ We welcome contributions! Please see the CONTRIBUTING.md file for guidelines on:
 
 ## Version History
 
--   **v1.0**: Initial release with monolithic design
--   **v2.0**: Refactored to SOLID architecture with DI support
--   **Current**: Enhanced documentation and examples
+-   **v1.0.0**: Initial release with monolithic design
+-   **v1.0.1**: Added serialization support for undo/redo stack state  
+-   **v1.0.2**: Updated package references, improved project structure, enhanced documentation, and refactored serialization services
 
 ---
 
 ## Next Steps
 
 1. **New to the library?** Start with [Getting Started](getting-started.md)
-2. **Migrating from v1.x?** Check the [Migration Guide](migration-guide.md)
-3. **Want to understand the design?** Read [Architecture Overview](architecture-overview.md)
-4. **Need examples?** Browse [Examples](examples.md)
-5. **Having issues?** Check [Troubleshooting](troubleshooting.md)
+2. **Want to understand the design?** Read [Architecture Overview](architecture-overview.md)
+3. **Need examples?** Browse [Tutorial: Advanced Scenarios](tutorial-advanced-scenarios.md)
+4. **Looking for best practices?** Check [Best Practices](best-practices.md)
+5. **Need API details?** See [API Reference](api-reference.md)
 
 Happy coding! 🚀

@@ -27,7 +27,7 @@ The library uses `Microsoft.Extensions.DependencyInjection.Abstractions`, making
 The simplest way to register all services:
 
 ```csharp
-using ktsu.UndoRedo.Core;
+using ktsu.UndoRedo;
 using Microsoft.Extensions.DependencyInjection;
 
 var services = new ServiceCollection();

@@ -2,7 +2,7 @@
 // All rights reserved.
 // Licensed under the MIT license.
 
-namespace ktsu.UndoRedo.Core.Models;
+namespace ktsu.UndoRedo.Models;
 
 /// <summary>
 /// Represents the complete state of an undo/redo stack for serialization

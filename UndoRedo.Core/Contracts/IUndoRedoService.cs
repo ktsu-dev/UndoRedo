@@ -2,8 +2,8 @@
 // All rights reserved.
 // Licensed under the MIT license.
 
-namespace ktsu.UndoRedo.Core.Contracts;
-using ktsu.UndoRedo.Core.Models;
+namespace ktsu.UndoRedo.Contracts;
+using ktsu.UndoRedo.Models;
 
 /// <summary>
 /// Main service interface for undo/redo operations

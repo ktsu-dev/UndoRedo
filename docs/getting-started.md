@@ -7,13 +7,13 @@ This guide will help you get up and running with the UndoRedo library quickly.
 Add the UndoRedo library to your project:
 
 ```xml
-<PackageReference Include="ktsu.UndoRedo.Core" Version="1.0.0" />
+<PackageReference Include="ktsu.UndoRedo" Version="1.0.2" />
 ```
 
 Or via Package Manager Console:
 
 ```powershell
-Install-Package ktsu.UndoRedo.Core
+Install-Package ktsu.UndoRedo
 ```
 
 ## Basic Setup
@@ -23,7 +23,7 @@ Install-Package ktsu.UndoRedo.Core
 If you're using dependency injection (recommended):
 
 ```csharp
-using ktsu.UndoRedo.Core;
+using ktsu.UndoRedo;
 using Microsoft.Extensions.DependencyInjection;
 
 // In your startup/configuration code
@@ -47,8 +47,8 @@ var serviceProvider = services.BuildServiceProvider();
 If you prefer not to use dependency injection:
 
 ```csharp
-using ktsu.UndoRedo.Core.Services;
-using ktsu.UndoRedo.Core.Models;
+using ktsu.UndoRedo.Services;
+using ktsu.UndoRedo.Models;
 
 // Create services manually
 var stackManager = new StackManager();
@@ -80,7 +80,7 @@ var undoRedoService = serviceProvider.GetRequiredService<IUndoRedoService>();
 #### Using DelegateCommand (Simple)
 
 ```csharp
-using ktsu.UndoRedo.Core;
+using ktsu.UndoRedo;
 
 // Simple text editing example
 var originalText = textBox.Text;
@@ -100,8 +100,8 @@ undoRedoService.Execute(command);
 #### Using Custom Commands
 
 ```csharp
-using ktsu.UndoRedo.Core;
-using ktsu.UndoRedo.Core.Models;
+using ktsu.UndoRedo;
+using ktsu.UndoRedo.Models;
 
 public class TextEditCommand : BaseCommand
 {
@@ -183,10 +183,10 @@ if (lastSave != null)
 Here's a complete example showing how to integrate the undo/redo system into a simple text editor:
 
 ```csharp
-using ktsu.UndoRedo.Core;
-using ktsu.UndoRedo.Core.Contracts;
-using ktsu.UndoRedo.Core.Models;
-using ktsu.UndoRedo.Core.Services;
+using ktsu.UndoRedo;
+using ktsu.UndoRedo.Contracts;
+using ktsu.UndoRedo.Models;
+using ktsu.UndoRedo.Services;
 using Microsoft.Extensions.DependencyInjection;
 
 public partial class SimpleTextEditor : Form
@@ -344,10 +344,10 @@ services.AddUndoRedo(options);
 
 ## Next Steps
 
--   Learn about [Advanced Usage](advanced-usage.md) for complex scenarios
--   Understand [Navigation Integration](navigation-integration.md) for UI navigation
+-   Learn about complex scenarios in [Tutorial: Advanced Scenarios](tutorial-advanced-scenarios.md)
+-   Understand navigation integration patterns in [Tutorial: Advanced Scenarios](tutorial-advanced-scenarios.md)
 -   Review [Best Practices](best-practices.md) for optimal usage
--   Explore [Commands](commands.md) for custom command development
+-   Explore [API Reference](api-reference.md) for detailed API documentation and custom command development
 
 ## Common Patterns
 

@@ -2,7 +2,7 @@
 // All rights reserved.
 // Licensed under the MIT license.
 
-namespace ktsu.UndoRedo.Core.Models;
+namespace ktsu.UndoRedo.Models;
 
 /// <summary>
 /// Visualization data for a change in the undo/redo stack

@@ -2,7 +2,7 @@
 // All rights reserved.
 // Licensed under the MIT license.
 
-namespace ktsu.UndoRedo.Core;
+namespace ktsu.UndoRedo;
 
 /// <summary>
 /// A command that contains multiple sub-commands executed as a single operation

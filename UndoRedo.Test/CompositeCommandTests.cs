@@ -7,7 +7,7 @@ namespace ktsu.UndoRedo.Test;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using ktsu.UndoRedo.Core;
+using ktsu.UndoRedo;
 
 [TestClass]
 public class CompositeCommandTests

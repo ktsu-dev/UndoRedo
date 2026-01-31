@@ -31,7 +31,7 @@ dotnet add package ktsu.UndoRedo
 ### Basic Usage
 
 ```csharp
-using ktsu.UndoRedo.Core;
+using ktsu.UndoRedo;
 
 // Create an undo/redo stack
 var undoRedoStack = new UndoRedoStack();
