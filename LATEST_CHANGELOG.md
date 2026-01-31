@@ -1,6 +1,6 @@
-## v1.0.6 (patch)
+## v1.0.7-pre.1 (prerelease)
 
-Changes since v1.0.5:
+Changes since v1.0.6:
 
-- Remove obsolete .project.json file from .specstory directory ([@matt-edmondson](https://github.com/matt-edmondson))
-- Refactor namespaces and update documentation for consistency across the UndoRedo library ([@matt-edmondson](https://github.com/matt-edmondson))
+- Sync COPYRIGHT.md ([@ktsu[bot]](https://github.com/ktsu[bot]))
+- Merge remote-tracking branch 'refs/remotes/origin/main' ([@ktsu[bot]](https://github.com/ktsu[bot]))
