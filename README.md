@@ -2,6 +2,14 @@
 
 A comprehensive .NET library for implementing undo/redo functionality with advanced features including save boundaries, change visualization, and external navigation integration.
 
+[![License](https://img.shields.io/github/license/ktsu-dev/UndoRedo.svg?label=License&logo=nuget)](LICENSE.md)
+[![NuGet Version](https://img.shields.io/nuget/v/ktsu.UndoRedo.Core?label=Stable&logo=nuget)](https://nuget.org/packages/ktsu.UndoRedo.Core)
+[![NuGet Version](https://img.shields.io/nuget/vpre/ktsu.UndoRedo.Core?label=Latest&logo=nuget)](https://nuget.org/packages/ktsu.UndoRedo.Core)
+[![NuGet Downloads](https://img.shields.io/nuget/dt/ktsu.UndoRedo.Core?label=Downloads&logo=nuget)](https://nuget.org/packages/ktsu.UndoRedo.Core)
+[![GitHub commit activity](https://img.shields.io/github/commit-activity/m/ktsu-dev/UndoRedo?label=Commits&logo=github)](https://github.com/ktsu-dev/UndoRedo/commits/main)
+[![GitHub contributors](https://img.shields.io/github/contributors/ktsu-dev/UndoRedo?label=Contributors&logo=github)](https://github.com/ktsu-dev/UndoRedo/graphs/contributors)
+[![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/ktsu-dev/UndoRedo/dotnet.yml?label=Build&logo=github)](https://github.com/ktsu-dev/UndoRedo/actions)
+
 ## Overview
 
 ktsu.UndoRedo provides a robust and flexible undo/redo stack implementation that goes beyond basic command pattern implementations. It's designed for applications that need sophisticated change tracking, visual feedback, and integration with navigation systems.
