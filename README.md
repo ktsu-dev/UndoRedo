@@ -8,7 +8,7 @@ A comprehensive .NET library for implementing undo/redo functionality with advan
 [![NuGet Downloads](https://img.shields.io/nuget/dt/ktsu.UndoRedo.Core?label=Downloads&logo=nuget)](https://nuget.org/packages/ktsu.UndoRedo.Core)
 [![GitHub commit activity](https://img.shields.io/github/commit-activity/m/ktsu-dev/UndoRedo?label=Commits&logo=github)](https://github.com/ktsu-dev/UndoRedo/commits/main)
 [![GitHub contributors](https://img.shields.io/github/contributors/ktsu-dev/UndoRedo?label=Contributors&logo=github)](https://github.com/ktsu-dev/UndoRedo/graphs/contributors)
-[![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/ktsu-dev/UndoRedo/dotnet.yml?label=Build&logo=github)](https://github.com/ktsu-dev/UndoRedo/actions)
+[![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/ktsu-dev/UndoRedo/dotnet.yml?branch=main&label=Build&logo=github)](https://github.com/ktsu-dev/UndoRedo/actions)
 
 ## Overview
 
