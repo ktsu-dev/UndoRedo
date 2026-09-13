@@ -295,6 +295,49 @@ public class UndoRedoStackTests
 	}
 
 	[TestMethod]
+	public void CommandMerging_IncrementalCommands_AppliesEachEffectOnce()
+	{
+		// Arrange
+		UndoRedoOptions options = UndoRedoOptions.Create(autoMerge: true);
+		UndoRedoService stack = new(new StackManager(), new SaveBoundaryManager(), new CommandMerger(), options);
+		List<char> value = [];
+
+		// Act
+		stack.Execute(new TestInsertMergeCommand(value, 0, "a"));
+		stack.Execute(new TestInsertMergeCommand(value, 1, "b"));
+
+		// Assert
+		Assert.AreEqual(1, stack.CommandCount, "Merged commands should occupy a single stack slot");
+		Assert.AreEqual("ab", new string([.. value]), "Merged execution should not duplicate already-applied effects");
+
+		stack.Undo();
+		Assert.AreEqual("", new string([.. value]), "Undo should revert the merged command completely");
+	}
+
+	[TestMethod]
+	public void CommandMerging_AfterUndo_CleansInvalidSaveBoundaries()
+	{
+		// Arrange
+		UndoRedoOptions options = UndoRedoOptions.Create(autoMerge: true);
+		UndoRedoService stack = new(new StackManager(), new SaveBoundaryManager(), new CommandMerger(), options);
+		string value = "";
+
+		stack.Execute(new TestMergeableCommand(s => value = s, "A"));
+		stack.Execute(new DelegateCommand("Set AX", () => value = "AX", () => value = "A"));
+		stack.MarkAsSaved("after second command");
+		stack.Undo();
+
+		// Act
+		stack.Execute(new TestMergeableCommand(s => value = s, "AB"));
+
+		// Assert
+		Assert.AreEqual("AB", value);
+		Assert.AreEqual(1, stack.CommandCount, "Forward commands should be removed when executing after undo");
+		Assert.IsEmpty(stack.SaveBoundaries, "Save boundaries beyond the current position should be cleaned up on merge");
+		Assert.IsFalse(stack.CanRedo, "Redo should be unavailable after forward commands are cleared");
+	}
+
+	[TestMethod]
 	public void CompositeCommand_NestedComposites_HandlesCorrectly()
 	{
 		// Arrange
@@ -504,6 +547,38 @@ public class UndoRedoStackTests
 		{
 			TestMergeableCommand otherCmd = (TestMergeableCommand)other;
 			return new TestMergeableCommand(_setter, otherCmd._newValue);
+		}
+	}
+
+	private sealed class TestInsertMergeCommand(List<char> target, int position, string text) : BaseCommand(ChangeType.Modify, ["text"])
+	{
+		private readonly List<char> _target = target;
+		private readonly int _position = position;
+		private readonly string _text = text;
+
+		public override string Description => $"Insert '{_text}' at {_position}";
+
+		public override void Execute()
+		{
+			_target.InsertRange(_position, _text);
+		}
+
+		public override void Undo()
+		{
+			_target.RemoveRange(_position, _text.Length);
+		}
+
+		public override bool CanMergeWith(ICommand other)
+		{
+			return other is TestInsertMergeCommand otherCmd &&
+				ReferenceEquals(_target, otherCmd._target) &&
+				otherCmd._position == _position + _text.Length;
+		}
+
+		public override ICommand MergeWith(ICommand other)
+		{
+			TestInsertMergeCommand otherCmd = (TestInsertMergeCommand)other;
+			return new TestInsertMergeCommand(_target, _position, _text + otherCmd._text);
 		}
 	}
 
