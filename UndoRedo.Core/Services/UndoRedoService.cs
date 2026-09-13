@@ -84,12 +84,13 @@ public sealed class UndoRedoService(
 				ICommand mergedCommand = _commandMerger.Merge(lastCommand, command);
 
 				// Replace the last command with the merged one
-				int position = _stackManager.CurrentPosition;
 				_stackManager.MovePrevious(); // Move back to remove the last command
 				_stackManager.ClearForward(); // Clear the old command
+				_saveBoundaryManager.CleanupInvalidBoundaries(_stackManager.CurrentPosition);
 				_stackManager.AddCommand(mergedCommand); // Add the merged command
 
-				// Execute the merged command
+				// Revert old command effect before applying merged command effect
+				lastCommand.Undo();
 				mergedCommand.Execute();
 
 				CommandExecuted?.Invoke(this, new CommandExecutedEventArgs(mergedCommand, _stackManager.CurrentPosition));
