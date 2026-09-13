@@ -1,4 +1,35 @@
-## v1.0.21
+## v1.1.0 (minor)
 
-No significant changes detected since v1.0.21.
+Changes since v1.0.0:
+
+- ci: make the SonarQube quality gate opt in [patch] ([@matt-edmondson](https://github.com/matt-edmondson))
+- ci: adopt the unified dotnet workflow [patch] ([@matt-edmondson](https://github.com/matt-edmondson))
+- chore: store icon.png in LFS as .gitattributes declares ([@matt-edmondson](https://github.com/matt-edmondson))
+- docs: scope build badge to the default branch ([@matt-edmondson](https://github.com/matt-edmondson))
+- docs: correct README, DESCRIPTION and TAGS metadata ([@matt-edmondson](https://github.com/matt-edmondson))
+- Fix build errors from ktsu.Sdk analyzer updates (NU1506 duplicate PackageVersions, IDE0073 headers, IDE0055 line endings, KTSU0001/0002/0007) [patch] ([@matt-edmondson](https://github.com/matt-edmondson))
+- Sync .runsettings ([@KtsuTools](https://github.com/KtsuTools))
+- Sync .editorconfig ([@KtsuTools](https://github.com/KtsuTools))
+- Sync .gitattributes ([@KtsuTools](https://github.com/KtsuTools))
+- Sync global.json ([@KtsuTools](https://github.com/KtsuTools))
+- chore: trim central package versions for UndoRedo.Core ([@matt-edmondson](https://github.com/matt-edmondson))
+- Remove legacy build scripts ([@matt-edmondson](https://github.com/matt-edmondson))
+- Remove obsolete .project.json file from .specstory directory ([@matt-edmondson](https://github.com/matt-edmondson))
+- Refactor namespaces and update documentation for consistency across the UndoRedo library ([@matt-edmondson](https://github.com/matt-edmondson))
+- Enhance test assertions with descriptive messages for clarity ([@matt-edmondson](https://github.com/matt-edmondson))
+- Migrate to dotnet 10 ([@matt-edmondson](https://github.com/matt-edmondson))
+- Refactor argument validation: Introduce Guard class for null checks and update package versions ([@matt-edmondson](https://github.com/matt-edmondson))
+- Update documentation files: removed outdated history file, added CLAUDE.md for project guidance ([@matt-edmondson](https://github.com/matt-edmondson))
+- Refactor project files to standardize SDK usage and update package references ([@matt-edmondson](https://github.com/matt-edmondson))
+- Update Microsoft.Testing.Extensions.CodeCoverage and MSTest packages to latest versions ([@matt-edmondson](https://github.com/matt-edmondson))
+- Update project configuration and metadata ([@matt-edmondson](https://github.com/matt-edmondson))
+- Update project documentation and enhance serialization features ([@matt-edmondson](https://github.com/matt-edmondson))
+- Fix issues in UndoRedo functionality and tests ([@matt-edmondson](https://github.com/matt-edmondson))
+- Add script to automate winget manifest updates ([@matt-edmondson](https://github.com/matt-edmondson))
+- Refactor package management and improve error handling in CompositeCommand ([@matt-edmondson](https://github.com/matt-edmondson))
+- Update package references, improve project structure, and enhance documentation ([@matt-edmondson](https://github.com/matt-edmondson))
+- Refactor JsonUndoRedoSerializer and UndoRedoService error handling ([@matt-edmondson](https://github.com/matt-edmondson))
+- Enhance JsonUndoRedoSerializer and UndoRedoService functionality ([@matt-edmondson](https://github.com/matt-edmondson))
+- Update package versions, remove unused projects, and enhance documentation ([@matt-edmondson](https://github.com/matt-edmondson))
+- Add serialization support for undo/redo stack state ([@matt-edmondson](https://github.com/matt-edmondson))
 
