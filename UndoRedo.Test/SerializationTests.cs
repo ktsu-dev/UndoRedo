@@ -175,6 +175,68 @@ public class SerializationTests
 	}
 
 	[TestMethod]
+	public void UndoRedoService_GetCurrentState_CanUndoMatchesService_AfterFirstCommand()
+	{
+		// Arrange
+		UndoRedoService stack = CreateService();
+		stack.Execute(new DelegateCommand("Command 1", () => { }, () => { }));
+
+		// Act
+		UndoRedoStackState state = stack.GetCurrentState();
+
+		// Assert
+		Assert.AreEqual(0, state.CurrentPosition);
+		Assert.IsTrue(stack.CanUndo, "The service can undo the command it just executed");
+		Assert.AreEqual(stack.CanUndo, state.CanUndo, "State.CanUndo must agree with the service after the first command");
+	}
+
+	[TestMethod]
+	public void UndoRedoService_GetCurrentState_CanUndoMatchesService_AtEveryReachablePosition()
+	{
+		// Arrange
+		UndoRedoService stack = CreateService();
+
+		// Assert: nothing executed yet
+		Assert.AreEqual(stack.CanUndo, stack.GetCurrentState().CanUndo, "State.CanUndo must agree with the service on an empty stack");
+
+		for (int i = 1; i <= 3; i++)
+		{
+			stack.Execute(new DelegateCommand($"Command {i}", () => { }, () => { }));
+			Assert.AreEqual(stack.CanUndo, stack.GetCurrentState().CanUndo, $"State.CanUndo must agree with the service after executing command {i}");
+			Assert.AreEqual(stack.CanRedo, stack.GetCurrentState().CanRedo, $"State.CanRedo must agree with the service after executing command {i}");
+		}
+
+		// Act & Assert: walk all the way back down, then back up
+		while (stack.CanUndo)
+		{
+			stack.Undo();
+			Assert.AreEqual(stack.CanUndo, stack.GetCurrentState().CanUndo, $"State.CanUndo must agree with the service at position {stack.CurrentPosition}");
+			Assert.AreEqual(stack.CanRedo, stack.GetCurrentState().CanRedo, $"State.CanRedo must agree with the service at position {stack.CurrentPosition}");
+		}
+
+		while (stack.CanRedo)
+		{
+			stack.Redo();
+			Assert.AreEqual(stack.CanUndo, stack.GetCurrentState().CanUndo, $"State.CanUndo must agree with the service at position {stack.CurrentPosition}");
+			Assert.AreEqual(stack.CanRedo, stack.GetCurrentState().CanRedo, $"State.CanRedo must agree with the service at position {stack.CurrentPosition}");
+		}
+	}
+
+	[TestMethod]
+	public void UndoRedoStackState_CreateEmpty_CanUndoMatchesAFreshService()
+	{
+		// Arrange
+		UndoRedoService stack = CreateService();
+
+		// Act
+		UndoRedoStackState state = UndoRedoStackState.CreateEmpty("test-v1.0");
+
+		// Assert
+		Assert.AreEqual(stack.CanUndo, state.CanUndo, "An empty state must report the same CanUndo as a fresh service");
+		Assert.AreEqual(stack.CanRedo, state.CanRedo, "An empty state must report the same CanRedo as a fresh service");
+	}
+
+	[TestMethod]
 	public void UndoRedoService_RestoreFromState_RestoresCorrectly()
 	{
 		// Arrange
@@ -227,7 +289,7 @@ public class SerializationTests
 		// Assert
 		Assert.IsTrue(state.IsEmpty, "Empty state should report IsEmpty as true");
 		Assert.AreEqual(0, state.CommandCount);
-		Assert.AreEqual(0, state.CurrentPosition);
+		Assert.AreEqual(-1, state.CurrentPosition, "Empty state should use the same -1 'nothing applied' position as the stack manager");
 		Assert.IsEmpty(state.SaveBoundaries);
 		Assert.IsFalse(state.CanUndo, "Empty state should not allow undo");
 		Assert.IsFalse(state.CanRedo, "Empty state should not allow redo");
