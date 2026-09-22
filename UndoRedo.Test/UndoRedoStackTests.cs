@@ -444,6 +444,52 @@ public class UndoRedoStackTests
 	}
 
 	[TestMethod]
+	public void Execute_MergedCommandThrowsException_DoesNotCorruptStack()
+	{
+		// Arrange
+		UndoRedoService stack = CreateService();
+		string value = "";
+
+		stack.Execute(new MergeFailureCommand(v => value = v, "a"));
+		Assert.AreEqual("a", value);
+		Assert.AreEqual(1, stack.CommandCount);
+
+		// Act: a second mergeable command, where the merged result throws on Execute
+		Assert.ThrowsExactly<InvalidOperationException>(() =>
+			stack.Execute(new MergeFailureCommand(v => value = v, "b")));
+
+		// Assert: the stack must describe what was actually applied
+		Assert.AreEqual(1, stack.CommandCount, "A merge that failed to apply must not be recorded on the stack");
+		Assert.AreEqual("a", value, "The application state must be restored to the last successfully applied command");
+		Assert.IsTrue(stack.CanUndo, "CanUndo should remain true after a failed merge");
+
+		// And undoing must return to the pre-command state, not double-apply an undo
+		stack.Undo();
+		Assert.AreEqual("", value, "Undo after a failed merge must undo exactly the one applied command");
+		Assert.IsFalse(stack.CanUndo, "The stack should be back at the start after undoing the single applied command");
+	}
+
+	[TestMethod]
+	public void Execute_MergedCommandThrowsAndRestoreAlsoThrows_SurfacesTheOriginalFailure()
+	{
+		// Arrange: the merged edit throws, and restoring the previous command throws too
+		UndoRedoService stack = CreateService();
+		string value = "";
+
+		stack.Execute(new MergeFailureCommand(v => value = v, "a", throwOnRestore: true));
+		Assert.AreEqual("a", value);
+
+		// Act & Assert: the caller sees the failure that actually broke the merge, not the one from
+		// the best-effort restore, which is swallowed the way CompositeCommand swallows its rollback failures
+		Assert.ThrowsExactly<InvalidOperationException>(() =>
+			stack.Execute(new MergeFailureCommand(v => value = v, "b")));
+
+		// The stack is still unchanged, so it describes the one command it recorded
+		Assert.AreEqual(1, stack.CommandCount, "A merge that failed to apply must not be recorded on the stack");
+		Assert.IsTrue(stack.CanUndo, "CanUndo should remain true after a failed merge");
+	}
+
+	[TestMethod]
 	public async Task UndoToSaveBoundary_WhenAlreadyAtPosition_ReturnsFalse()
 	{
 		// Arrange
@@ -547,6 +593,49 @@ public class UndoRedoStackTests
 		{
 			TestMergeableCommand otherCmd = (TestMergeableCommand)other;
 			return new TestMergeableCommand(_setter, otherCmd._newValue);
+		}
+	}
+
+	/// <summary>
+	/// A mergeable command whose merged result always throws on <see cref="Execute"/>, standing in for
+	/// a merge that produces an invalid combined edit
+	/// </summary>
+	private sealed class MergeFailureCommand(Action<string> setter, string newValue, bool throwOnExecute = false, bool throwOnRestore = false) : BaseCommand(ChangeType.Modify, ["text"])
+	{
+		private readonly Action<string> _setter = setter;
+		private readonly string _newValue = newValue;
+		private readonly bool _throwOnExecute = throwOnExecute;
+		private readonly bool _throwOnRestore = throwOnRestore;
+		private readonly string _oldValue = "";
+		private bool _hasExecuted;
+
+		public override string Description => $"Set text to '{_newValue}'";
+
+		public override void Execute()
+		{
+			if (_throwOnExecute)
+			{
+				throw new InvalidOperationException("The merged edit is invalid");
+			}
+
+			// A second Execute is the service restoring this command after a failed merge
+			if (_throwOnRestore && _hasExecuted)
+			{
+				throw new NotSupportedException("The command cannot be re-applied");
+			}
+
+			_hasExecuted = true;
+			_setter(_newValue);
+		}
+
+		public override void Undo() => _setter(_oldValue);
+
+		public override bool CanMergeWith(ICommand other) => other is MergeFailureCommand;
+
+		public override ICommand MergeWith(ICommand other)
+		{
+			MergeFailureCommand otherCmd = (MergeFailureCommand)other;
+			return new MergeFailureCommand(_setter, otherCmd._newValue, throwOnExecute: true);
 		}
 	}
 

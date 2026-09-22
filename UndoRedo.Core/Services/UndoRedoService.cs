@@ -83,15 +83,38 @@ public sealed class UndoRedoService(
 			{
 				ICommand mergedCommand = _commandMerger.Merge(lastCommand, command);
 
+				// Apply the real state change before touching the stack, so a failure here can never
+				// leave the stack recording a command that was not actually applied. This mirrors the
+				// non-merge path below and CompositeCommand.Execute().
+				// If this Undo throws, nothing has been mutated and the stack is still accurate.
+				lastCommand.Undo();
+
+				try
+				{
+					mergedCommand.Execute();
+				}
+#pragma warning disable CA1031 // Do not catch general exception types
+				catch (Exception)
+				{
+					// The merged edit failed, so put the application back where the stack says it is
+					try
+					{
+						lastCommand.Execute();
+					}
+					catch (Exception)
+					{
+						// Continue unwinding even if the restore fails
+					}
+
+					throw; // Re-throw the original exception
+				}
+#pragma warning restore CA1031 // Do not catch general exception types
+
 				// Replace the last command with the merged one
 				_stackManager.MovePrevious(); // Move back to remove the last command
 				_stackManager.ClearForward(); // Clear the old command
 				_saveBoundaryManager.CleanupInvalidBoundaries(_stackManager.CurrentPosition);
 				_stackManager.AddCommand(mergedCommand); // Add the merged command
-
-				// Revert old command effect before applying merged command effect
-				lastCommand.Undo();
-				mergedCommand.Execute();
 
 				CommandExecuted?.Invoke(this, new CommandExecutedEventArgs(mergedCommand, _stackManager.CurrentPosition));
 				return;
