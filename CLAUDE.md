@@ -32,13 +32,13 @@ dotnet test --nologo
 dotnet test --verbosity normal --logger "console;verbosity=detailed" | cat
 
 # Alternative: restore individual projects directly
-dotnet restore UndoRedo.Core/UndoRedo.Core.csproj && dotnet restore UndoRedo.Test/UndoRedo.Test.csproj
+dotnet restore UndoRedo/UndoRedo.csproj && dotnet restore UndoRedo.Test/UndoRedo.Test.csproj
 ```
 
 ## Project Structure
 
 **Solution:** `UndoRedo.sln` contains two projects:
-- `UndoRedo.Core` - Main library with multi-targeting (net5.0-net9.0, netstandard2.0/2.1)
+- `UndoRedo` - Main library with multi-targeting (net5.0-net9.0, netstandard2.0/2.1)
 - `UndoRedo.Test` - MSTest test project (net9.0)
 
 **Build System:**
@@ -51,7 +51,7 @@ dotnet restore UndoRedo.Core/UndoRedo.Core.csproj && dotnet restore UndoRedo.Tes
 The library follows a **contracts, models, and services** architecture with dependency injection support:
 
 ### Contracts (Interfaces)
-Located in `UndoRedo.Core/Contracts/`:
+Located in `UndoRedo/Contracts/`:
 - `ICommand` - Core interface for undoable commands with Execute/Undo, metadata, and merge support
 - `IUndoRedoService` - Main service interface for undo/redo operations
 - `IStackManager` - Manages the command stack and position tracking
@@ -61,7 +61,7 @@ Located in `UndoRedo.Core/Contracts/`:
 - `IUndoRedoSerializer` - Interface for serializing/deserializing undo stacks
 
 ### Models
-Located in `UndoRedo.Core/Models/`:
+Located in `UndoRedo/Models/`:
 - `ChangeMetadata` - Rich metadata about changes (type, affected items, timestamp)
 - `ChangeVisualization` - Data for displaying change history in UI
 - `SaveBoundary` - Represents a save point with position and description
@@ -69,7 +69,7 @@ Located in `UndoRedo.Core/Models/`:
 - `UndoRedoStackState` - Serializable state for persistence
 
 ### Services
-Located in `UndoRedo.Core/Services/`:
+Located in `UndoRedo/Services/`:
 - `UndoRedoService` - Main service orchestrating undo/redo operations
 - `StackManager` - Concrete implementation of command stack management
 - `SaveBoundaryManager` - Manages save boundary creation and cleanup
@@ -77,7 +77,7 @@ Located in `UndoRedo.Core/Services/`:
 - `JsonUndoRedoSerializer` - JSON-based serialization implementation
 
 ### Command Implementations
-Located in `UndoRedo.Core/`:
+Located in `UndoRedo/`:
 - `BaseCommand` - Abstract base class with common functionality
 - `DelegateCommand` - Simple command using delegates for execute/undo
 - `CompositeCommand` - Groups multiple commands into atomic operations
