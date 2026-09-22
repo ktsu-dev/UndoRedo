@@ -9,7 +9,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-      <ProjectReference Include="..\UndoRedo.Core\UndoRedo.Core.csproj" />
+      <ProjectReference Include="..\UndoRedo\UndoRedo.csproj" />
   </ItemGroup>
 
 </Project>
