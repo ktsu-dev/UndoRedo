@@ -109,7 +109,21 @@ public class JsonUndoRedoSerializer(JsonSerializerOptions? options = null) : IUn
 		Type? commandType = Type.GetType(serializableCommand.Type);
 		if (commandType != null && typeof(ISerializableCommand).IsAssignableFrom(commandType))
 		{
-			ISerializableCommand? instance = Activator.CreateInstance(commandType) as ISerializableCommand;
+			ISerializableCommand? instance;
+			try
+			{
+				instance = Activator.CreateInstance(commandType) as ISerializableCommand;
+			}
+			catch (MissingMethodException ex)
+			{
+				// Activator.CreateInstance needs a public parameterless constructor, which most real
+				// command types do not have. Translate it into an exception the deserialization
+				// contract already covers, so LoadStateAsync reports false instead of throwing.
+				throw new InvalidOperationException(
+					$"Cannot reconstruct command type '{commandType.FullName}': {nameof(ISerializableCommand)} implementations must have a public parameterless constructor for DeserializeData to populate.",
+					ex);
+			}
+
 			instance?.DeserializeData(serializableCommand.Data!);
 			return (ICommand)instance!;
 		}
@@ -146,6 +160,11 @@ public class JsonUndoRedoSerializer(JsonSerializerOptions? options = null) : IUn
 /// <summary>
 /// Interface for commands that can serialize their data
 /// </summary>
+/// <remarks>
+/// Implementations must also provide a public parameterless constructor. Deserialization creates the
+/// instance before it has any data to work from, then populates it through <see cref="DeserializeData"/>.
+/// Without one, reconstructing the command fails and <c>LoadStateAsync</c> reports <see langword="false"/>.
+/// </remarks>
 public interface ISerializableCommand
 {
 	/// <summary>
