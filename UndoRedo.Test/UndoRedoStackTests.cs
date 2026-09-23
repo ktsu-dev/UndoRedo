@@ -444,6 +444,62 @@ public class UndoRedoStackTests
 	}
 
 	[TestMethod]
+	public void Execute_CommandThrowsException_PreservesRedoHistory()
+	{
+		// Arrange: three commands, then undo twice so B and C are available to redo
+		UndoRedoService stack = CreateService();
+		int value = 0;
+
+		stack.Execute(new DelegateCommand("A", () => value = 1, () => value = 0));
+		stack.Execute(new DelegateCommand("B", () => value = 2, () => value = 1));
+		stack.Execute(new DelegateCommand("C", () => value = 3, () => value = 2));
+
+		stack.Undo();
+		stack.Undo();
+		Assert.AreEqual(1, value);
+		Assert.IsTrue(stack.CanRedo, "B and C should be available to redo before the failing command");
+
+		// Act: a command that fails to apply must not branch the stack
+		Assert.ThrowsExactly<InvalidOperationException>(() =>
+			stack.Execute(new DelegateCommand("Bad Command", () => throw new InvalidOperationException(), () => { })));
+
+		// Assert: nothing was applied, so nothing may have been discarded
+		Assert.AreEqual(3, stack.CommandCount, "A command that failed to apply must not discard the forward history");
+		Assert.IsTrue(stack.CanRedo, "CanRedo should remain true after a failed command execution");
+		Assert.AreEqual(1, value, "The failed command must not have changed the application state");
+
+		// And the preserved history must still be replayable
+		stack.Redo();
+		Assert.AreEqual(2, value, "Redo after a failed command must reapply B");
+		stack.Redo();
+		Assert.AreEqual(3, value, "Redo after a failed command must reapply C");
+		Assert.IsFalse(stack.CanRedo, "The stack should be fully redone after replaying both preserved commands");
+	}
+
+	[TestMethod]
+	public void Execute_CommandThrowsException_PreservesSaveBoundariesInForwardHistory()
+	{
+		// Arrange: a save boundary that lives inside the forward history
+		UndoRedoService stack = CreateService();
+		int value = 0;
+
+		stack.Execute(new DelegateCommand("A", () => value = 1, () => value = 0));
+		stack.Execute(new DelegateCommand("B", () => value = 2, () => value = 1));
+		stack.MarkAsSaved("saved at B");
+		stack.Undo();
+
+		Assert.AreEqual(1, value);
+		Assert.AreEqual(1, stack.SaveBoundaries.Count, "The save boundary should exist before the failing command");
+
+		// Act
+		Assert.ThrowsExactly<InvalidOperationException>(() =>
+			stack.Execute(new DelegateCommand("Bad Command", () => throw new InvalidOperationException(), () => { })));
+
+		// Assert: the boundary only becomes invalid once the branch actually happens
+		Assert.AreEqual(1, stack.SaveBoundaries.Count, "A command that failed to apply must not invalidate save boundaries");
+	}
+
+	[TestMethod]
 	public void Execute_MergedCommandThrowsException_DoesNotCorruptStack()
 	{
 		// Arrange
