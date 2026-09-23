@@ -323,6 +323,71 @@ public class SerializationTests
 		Assert.IsFalse(state.CanRedo, "State should not allow redo when at end of command stack");
 	}
 
+	[TestMethod]
+	public async Task UndoRedoService_LoadStateCommandHasNoParameterlessConstructor_ReturnsFalse()
+	{
+		// Arrange: a command type whose only constructor takes the value it changes, which is what a
+		// real ISerializableCommand implementation looks like
+		UndoRedoService stack = CreateService();
+		stack.SetSerializer(new JsonUndoRedoSerializer());
+		stack.Execute(new ConstructorOnlySerializableCommand("saved"));
+
+		byte[] data = await stack.SaveStateAsync().ConfigureAwait(false);
+
+		UndoRedoService newStack = CreateService();
+		newStack.SetSerializer(new JsonUndoRedoSerializer());
+
+		// Act: LoadStateAsync reports failure rather than letting MissingMethodException escape
+		bool success = await newStack.LoadStateAsync(data).ConfigureAwait(false);
+
+		// Assert
+		Assert.IsFalse(success, "LoadStateAsync should return false when a command cannot be reconstructed");
+		Assert.AreEqual(0, newStack.CommandCount, "A failed load should not leave partial state on the stack");
+	}
+
+	[TestMethod]
+	public async Task JsonSerializer_DeserializeCommandHasNoParameterlessConstructor_ThrowsInvalidOperationException()
+	{
+		// Arrange
+		JsonUndoRedoSerializer serializer = new();
+		ConstructorOnlySerializableCommand command = new("saved");
+		byte[] data = await serializer.SerializeAsync([command], 0, []).ConfigureAwait(false);
+
+		// Act & Assert: the failure is reported as part of the deserialization contract, not as the
+		// raw reflection error
+		InvalidOperationException ex = await Assert.ThrowsExactlyAsync<InvalidOperationException>(
+			() => serializer.DeserializeAsync(data)).ConfigureAwait(false);
+
+		Assert.Contains(nameof(ConstructorOnlySerializableCommand), ex.Message, "The message should name the type that could not be reconstructed");
+		Assert.IsInstanceOfType<MissingMethodException>(ex.InnerException, "The underlying reflection failure should be preserved");
+	}
+
+	private sealed class ConstructorOnlySerializableCommand(string value)
+		: BaseCommand(ChangeType.Modify, ["test"]), ISerializableCommand
+	{
+		public string Value { get; private set; } = value;
+
+		public override string Description => $"Constructor-only command with value: {Value}";
+
+		public override void Execute()
+		{
+			// Test implementation
+		}
+
+		public override void Undo()
+		{
+			// Test implementation
+		}
+
+		public string SerializeData() => JsonSerializer.Serialize(new { Value });
+
+		public void DeserializeData(string data)
+		{
+			JsonElement element = JsonSerializer.Deserialize<JsonElement>(data);
+			Value = element.GetProperty(nameof(Value)).GetString() ?? string.Empty;
+		}
+	}
+
 	private sealed class TestSerializableCommand : BaseCommand, ISerializableCommand
 	{
 		public string Value { get; private set; } = string.Empty;
