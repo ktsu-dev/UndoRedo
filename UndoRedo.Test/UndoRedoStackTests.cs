@@ -489,14 +489,14 @@ public class UndoRedoStackTests
 		stack.Undo();
 
 		Assert.AreEqual(1, value);
-		Assert.AreEqual(1, stack.SaveBoundaries.Count, "The save boundary should exist before the failing command");
+		Assert.HasCount(1, stack.SaveBoundaries, "The save boundary should exist before the failing command");
 
 		// Act
 		Assert.ThrowsExactly<InvalidOperationException>(() =>
 			stack.Execute(new DelegateCommand("Bad Command", () => throw new InvalidOperationException(), () => { })));
 
 		// Assert: the boundary only becomes invalid once the branch actually happens
-		Assert.AreEqual(1, stack.SaveBoundaries.Count, "A command that failed to apply must not invalidate save boundaries");
+		Assert.HasCount(1, stack.SaveBoundaries, "A command that failed to apply must not invalidate save boundaries");
 	}
 
 	[TestMethod]
