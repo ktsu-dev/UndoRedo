@@ -121,12 +121,14 @@ public sealed class UndoRedoService(
 			}
 		}
 
+		// Apply the real state change before discarding anything, so a failure here can never throw
+		// away redo history for a command that was not actually applied. This mirrors the merge path
+		// above and CompositeCommand.Execute().
+		command.Execute();
+
 		// Clear any commands after the current position and cleanup save boundaries
 		_stackManager.ClearForward();
 		_saveBoundaryManager.CleanupInvalidBoundaries(_stackManager.CurrentPosition);
-
-		// Execute the command
-		command.Execute();
 
 		// Add to stack
 		_stackManager.AddCommand(command);
