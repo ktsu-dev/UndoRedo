@@ -1,8 +1,6 @@
-## v2.0.2 (patch)
+## v2.0.3 (patch)
 
-Changes since v2.0.1:
+Changes since v2.0.2:
 
-- test: assert save boundary count with Assert.HasCount [patch] ([@Claude](https://github.com/Claude))
-- fix: report a command with no parameterless constructor as a load failure [patch] ([@Claude](https://github.com/Claude))
-- fix: make the non-merge path in Execute() exception-safe [patch] ([@Claude](https://github.com/Claude))
+- Bump the ktsu group with 9 updates ([@dependabot[bot]](https://github.com/dependabot[bot]))
 
