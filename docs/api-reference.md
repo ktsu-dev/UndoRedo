@@ -314,10 +314,10 @@ if (lastSave != null)
 ```csharp
 IEnumerable<ChangeVisualization> GetChangeVisualizations(int maxItems = 50);
 ```
-Gets change visualization data for the commands in the stack.
+Gets change visualization data for the commands in the stack. When there are more than `maxItems` commands, it returns the most recent ones. If the current position has been undone to before that window, the window is centred on the current position instead, so it always holds the current command and the redoable commands after it. `Position` is the absolute index in the stack.
 
 **Parameters:**
-- `maxItems`: Maximum number of items to return (default: 50)
+- `maxItems`: Maximum number of items to return (default: 50). Zero or less returns no items
 
 **Returns:** Visualization data for changes
 
