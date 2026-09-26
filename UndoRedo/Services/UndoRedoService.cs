@@ -396,6 +396,7 @@ public sealed class UndoRedoService(
 		state.SaveBoundaries is not null &&
 		!state.Commands.Any(command => command is null) &&
 		!state.SaveBoundaries.Any(boundary => boundary is null) &&
+		state.SaveBoundaries.All(boundary => boundary.Position >= -1 && boundary.Position < state.Commands.Count) &&
 		state.CurrentPosition >= -1 &&
 		state.CurrentPosition < state.Commands.Count;
 }

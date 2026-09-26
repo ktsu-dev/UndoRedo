@@ -467,6 +467,84 @@ public class SerializationTests
 		Assert.HasCount(1, stack.SaveBoundaries, "A failed restore should keep the existing save boundaries");
 	}
 
+	[TestMethod]
+	[DataRow(-7, DisplayName = "boundary before the start")]
+	[DataRow(-2, DisplayName = "boundary one before the start")]
+	[DataRow(2, DisplayName = "boundary at the command count")]
+	[DataRow(42, DisplayName = "boundary far past the last command")]
+	public void UndoRedoService_RestoreFromStateInvalidBoundaryPosition_ReturnsFalseAndKeepsHistory(int boundaryPosition)
+	{
+		// Arrange
+		UndoRedoService stack = CreateService();
+		stack.Execute(new DelegateCommand("A", () => { }, () => { }));
+		stack.MarkAsSaved();
+
+		UndoRedoStackState state = new(
+			[new DelegateCommand("X", () => { }, () => { }), new DelegateCommand("Y", () => { }, () => { })],
+			1,
+			[new SaveBoundary(boundaryPosition)],
+			"1.0",
+			DateTime.UtcNow);
+
+		// Act
+		bool success = stack.RestoreFromState(state);
+
+		// Assert
+		Assert.IsFalse(success, "RestoreFromState should reject a save boundary outside the commands");
+		Assert.AreEqual(1, stack.CommandCount, "A failed restore should keep the existing commands");
+		Assert.AreEqual(0, stack.CurrentPosition, "A failed restore should keep the existing position");
+		Assert.HasCount(1, stack.SaveBoundaries, "A failed restore should keep the existing save boundaries");
+		Assert.AreEqual(0, stack.SaveBoundaries[0].Position, "A failed restore should keep the existing save boundary position");
+	}
+
+	[TestMethod]
+	[DataRow(-1, DisplayName = "boundary at the initial position")]
+	[DataRow(1, DisplayName = "boundary at the last command")]
+	public void UndoRedoService_RestoreFromStateBoundaryAtEdge_Restores(int boundaryPosition)
+	{
+		// Arrange
+		UndoRedoService stack = CreateService();
+		UndoRedoStackState state = new(
+			[new DelegateCommand("X", () => { }, () => { }), new DelegateCommand("Y", () => { }, () => { })],
+			1,
+			[new SaveBoundary(boundaryPosition)],
+			"1.0",
+			DateTime.UtcNow);
+
+		// Act
+		bool success = stack.RestoreFromState(state);
+
+		// Assert
+		Assert.IsTrue(success, "RestoreFromState should accept a save boundary at -1 or at the last command");
+		Assert.HasCount(1, stack.SaveBoundaries);
+		Assert.AreEqual(boundaryPosition, stack.SaveBoundaries[0].Position);
+	}
+
+	[TestMethod]
+	public async Task UndoRedoService_LoadStateAsyncInvalidBoundaryPosition_ReturnsFalseAndKeepsHistory()
+	{
+		// Arrange
+		JsonUndoRedoSerializer serializer = new();
+		byte[] data = await serializer.SerializeAsync(
+			[new TestSerializableCommand("X")],
+			0,
+			[new SaveBoundary(-7), new SaveBoundary(42)]).ConfigureAwait(false);
+
+		UndoRedoService stack = CreateService();
+		stack.SetSerializer(new JsonUndoRedoSerializer());
+		stack.Execute(new DelegateCommand("A", () => { }, () => { }));
+		stack.MarkAsSaved();
+
+		// Act
+		bool success = await stack.LoadStateAsync(data).ConfigureAwait(false);
+
+		// Assert
+		Assert.IsFalse(success, "LoadStateAsync should reject save boundaries outside the commands");
+		Assert.AreEqual(1, stack.CommandCount, "A failed load should keep the existing commands");
+		Assert.HasCount(1, stack.SaveBoundaries, "A failed load should keep the existing save boundaries");
+		Assert.AreEqual(0, stack.SaveBoundaries[0].Position, "A failed load should keep the existing save boundary position");
+	}
+
 	private sealed class ConstructorOnlySerializableCommand(string value)
 		: BaseCommand(ChangeType.Modify, ["test"]), ISerializableCommand
 	{
