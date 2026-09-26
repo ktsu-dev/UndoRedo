@@ -75,28 +75,37 @@ public sealed class CompositeCommand : BaseCommand
 	/// <inheritdoc />
 	public override void Undo()
 	{
-		List<Exception> undoExceptions = [];
+		List<ICommand> undoneCommands = [];
 
-		// Undo in reverse order, collecting any exceptions
-		for (int i = _commands.Count - 1; i >= 0; i--)
+		try
 		{
-#pragma warning disable CA1031 // Do not catch general exception types
-			try
+			// Undo in reverse order
+			for (int i = _commands.Count - 1; i >= 0; i--)
 			{
 				_commands[i].Undo();
+				undoneCommands.Add(_commands[i]);
 			}
-			catch (Exception ex)
-			{
-				undoExceptions.Add(ex);
-			}
-#pragma warning restore CA1031 // Do not catch general exception types
 		}
-
-		// If any undo operations failed, throw the first exception
-		if (undoExceptions.Count > 0)
+#pragma warning disable CA1031 // Do not catch general exception types
+		catch (Exception)
 		{
-			throw undoExceptions[0];
+			// Re-apply what this call already undid, in forward order, so a failed Undo leaves the
+			// composite fully applied. The stack keeps its position when Undo throws, so it must be
+			// able to rely on nothing having been undone. This mirrors the rollback in Execute().
+			for (int i = undoneCommands.Count - 1; i >= 0; i--)
+			{
+				try
+				{
+					undoneCommands[i].Execute();
+				}
+				catch (Exception)
+				{
+					// Continue restoring even if an individual re-execute fails
+				}
+			}
+			throw; // Re-throw the original exception
 		}
+#pragma warning restore CA1031 // Do not catch general exception types
 	}
 
 	/// <inheritdoc />
