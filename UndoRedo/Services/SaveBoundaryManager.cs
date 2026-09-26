@@ -11,16 +11,20 @@ public sealed class SaveBoundaryManager : ISaveBoundaryManager
 {
 	private readonly List<SaveBoundary> _saveBoundaries = [];
 
+	// Whether position -1 still holds the untouched initial state, which is clean without a boundary.
+	// It stops being true once anything is saved, since the saved state replaces it, and once trimming
+	// shifts later commands' results down to -1.
+	private bool _initialStateIsClean = true;
+
 	/// <inheritdoc />
 	public IReadOnlyList<SaveBoundary> SaveBoundaries => _saveBoundaries.AsReadOnly();
 
 	/// <inheritdoc />
 	public bool HasUnsavedChanges(int currentPosition)
 	{
-		// If no save boundaries exist, we have unsaved changes unless at initial position
-		if (_saveBoundaries.Count == 0)
+		if (currentPosition == -1 && _initialStateIsClean)
 		{
-			return currentPosition >= 0;
+			return false;
 		}
 
 		// No unsaved changes if we're exactly at a save boundary position
@@ -32,6 +36,7 @@ public sealed class SaveBoundaryManager : ISaveBoundaryManager
 	{
 		SaveBoundary saveBoundary = new(position, description);
 		_saveBoundaries.Add(saveBoundary);
+		_initialStateIsClean = false;
 		return saveBoundary;
 	}
 
@@ -58,12 +63,19 @@ public sealed class SaveBoundaryManager : ISaveBoundaryManager
 			return;
 		}
 
+		if (adjustment < 0)
+		{
+			// Commands were trimmed from the bottom, so -1 is now the state after them, not the initial one
+			_initialStateIsClean = false;
+		}
+
 		for (int i = _saveBoundaries.Count - 1; i >= 0; i--)
 		{
 			SaveBoundary boundary = _saveBoundaries[i];
 			int newPosition = boundary.Position + adjustment;
 
-			if (newPosition < 0)
+			// -1 is a reachable position, so a boundary shifted exactly there is still a valid save point
+			if (newPosition < -1)
 			{
 				_saveBoundaries.RemoveAt(i);
 			}
@@ -90,5 +102,9 @@ public sealed class SaveBoundaryManager : ISaveBoundaryManager
 	}
 
 	/// <inheritdoc />
-	public void Clear() => _saveBoundaries.Clear();
+	public void Clear()
+	{
+		_saveBoundaries.Clear();
+		_initialStateIsClean = true;
+	}
 }
