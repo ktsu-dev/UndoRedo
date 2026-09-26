@@ -187,6 +187,9 @@ internal sealed class PlaceholderCommand(string description, string? navigationC
 {
 	public override string Description { get; } = $"[Placeholder] {description}";
 
+	// Keep the deserialized metadata, rather than the fresh timestamp, size and custom data BaseCommand builds
+	public override ChangeMetadata Metadata { get; protected set; } = Ensure.NotNull(metadata);
+
 	public override void Execute() => throw new NotSupportedException("Placeholder commands cannot be executed");
 
 	public override void Undo() => throw new NotSupportedException("Placeholder commands cannot be undone");
