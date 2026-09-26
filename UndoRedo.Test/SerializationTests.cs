@@ -142,6 +142,36 @@ public class SerializationTests
 	}
 
 	[TestMethod]
+	public async Task UndoRedoService_SaveLoadState_PreservesCommandMetadata()
+	{
+		// Arrange
+		UndoRedoService stack = CreateService();
+		stack.SetSerializer(new JsonUndoRedoSerializer());
+
+		Dictionary<string, object> customData = new() { ["author"] = "alice" };
+		stack.Execute(new DelegateCommand("Big edit", () => { }, () => { }, ChangeType.Insert, ["doc"], size: 42, customData: customData));
+		ChangeMetadata original = stack.Commands[0].Metadata;
+
+		// Act
+		byte[] data = await stack.SaveStateAsync().ConfigureAwait(false);
+
+		UndoRedoService newStack = CreateService();
+		newStack.SetSerializer(new JsonUndoRedoSerializer());
+		bool success = await newStack.LoadStateAsync(data).ConfigureAwait(false);
+
+		// Assert
+		Assert.IsTrue(success);
+		ChangeMetadata loaded = newStack.Commands[0].Metadata;
+		Assert.AreEqual(original.Timestamp, loaded.Timestamp, "The timestamp must be when the change was made, not when it was loaded");
+		Assert.AreEqual(42, loaded.Size);
+		Assert.AreEqual(ChangeType.Insert, loaded.ChangeType);
+		Assert.HasCount(1, loaded.AffectedItems);
+		Assert.AreEqual("doc", loaded.AffectedItems[0]);
+		Assert.IsNotNull(loaded.CustomData, "CustomData must survive a save and load");
+		Assert.AreEqual("alice", loaded.CustomData["author"].ToString());
+	}
+
+	[TestMethod]
 	public async Task UndoRedoService_NoSerializer_ThrowsInvalidOperationException()
 	{
 		// Arrange
