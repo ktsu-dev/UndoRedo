@@ -546,6 +546,71 @@ public class UndoRedoStackTests
 	}
 
 	[TestMethod]
+	public void HasUnsavedChanges_AtStartAfterTrimming_IsTrue()
+	{
+		// Arrange: B trims A, so position -1 now holds A's never-saved result
+		UndoRedoService stack = new(new StackManager(), new SaveBoundaryManager(), new CommandMerger(), UndoRedoOptions.Create(maxStackSize: 1));
+		int value = 0;
+
+		stack.Execute(new DelegateCommand("A", () => value = 1, () => value = 0));
+		stack.Execute(new DelegateCommand("B", () => value = 2, () => value = 1));
+
+		// Act
+		stack.Undo();
+
+		// Assert
+		Assert.AreEqual(-1, stack.CurrentPosition);
+		Assert.AreEqual(1, value);
+		Assert.IsTrue(stack.HasUnsavedChanges, "Position -1 is not the initial state once trimming has shifted A's result there");
+	}
+
+	[TestMethod]
+	public void HasUnsavedChanges_AtStartAfterBranchRemovesTheOnlyBoundary_IsTrue()
+	{
+		// Arrange: A is saved, then undone and branched away from
+		UndoRedoService stack = CreateService();
+		int value = 0;
+
+		stack.Execute(new DelegateCommand("A", () => value = 1, () => value = 0));
+		stack.MarkAsSaved();
+		stack.Undo();
+		Assert.IsTrue(stack.HasUnsavedChanges, "The saved file holds A, not the initial state");
+
+		stack.Execute(new DelegateCommand("B", () => value = 2, () => value = 0));
+		Assert.IsEmpty(stack.SaveBoundaries, "The branch invalidates the boundary at A");
+
+		// Act
+		stack.Undo();
+
+		// Assert: the file on disk still holds A
+		Assert.AreEqual(-1, stack.CurrentPosition);
+		Assert.AreEqual(0, value);
+		Assert.IsTrue(stack.HasUnsavedChanges, "The initial state was never what was saved");
+	}
+
+	[TestMethod]
+	public void AdjustPositions_BoundaryShiftedToStart_IsKept()
+	{
+		// Arrange
+		UndoRedoService stack = new(new StackManager(), new SaveBoundaryManager(), new CommandMerger(), UndoRedoOptions.Create(maxStackSize: 2));
+
+		stack.Execute(new DelegateCommand("A", () => { }, () => { }));
+		stack.MarkAsSaved("after A");
+		stack.Execute(new DelegateCommand("B", () => { }, () => { }));
+
+		// Act: C trims A, which shifts the save point after A to -1
+		stack.Execute(new DelegateCommand("C", () => { }, () => { }));
+
+		// Assert
+		Assert.HasCount(1, stack.SaveBoundaries, "A save point shifted to -1 is still reachable and must be kept");
+		Assert.AreEqual(-1, stack.SaveBoundaries[0].Position);
+
+		stack.Undo();
+		stack.Undo();
+		Assert.IsFalse(stack.HasUnsavedChanges, "Undoing back to the save point after A must report it as saved");
+	}
+
+	[TestMethod]
 	public async Task UndoToSaveBoundary_WhenAlreadyAtPosition_ReturnsFalse()
 	{
 		// Arrange
