@@ -546,6 +546,99 @@ public class UndoRedoStackTests
 	}
 
 	[TestMethod]
+	public void Undo_CommandThrowsException_LeavesPositionUnchanged()
+	{
+		// Arrange: B's Undo fails the first time it is attempted
+		UndoRedoService stack = CreateService();
+		int value = 0;
+		bool failUndo = true;
+
+		stack.Execute(new DelegateCommand("A", () => value = 1, () => value = 0));
+		stack.Execute(new DelegateCommand("B", () => value = 2, () =>
+		{
+			if (failUndo)
+			{
+				throw new InvalidOperationException();
+			}
+
+			value = 1;
+		}));
+
+		// Act
+		Assert.ThrowsExactly<InvalidOperationException>(() => stack.Undo());
+
+		// Assert: nothing was undone, so the stack must not have moved
+		Assert.AreEqual(1, stack.CurrentPosition, "A failed Undo must not move the stack position");
+		Assert.IsTrue(stack.CanUndo, "CanUndo should be unchanged after a failed Undo");
+		Assert.IsFalse(stack.CanRedo, "A command that failed to undo must not become redoable");
+		Assert.AreEqual(2, value);
+
+		// And the next Undo must retry B rather than skip over it to A
+		failUndo = false;
+		stack.Undo();
+		Assert.AreEqual(1, value, "Undo after a failed Undo must undo B, not skip to A");
+		Assert.AreEqual(0, stack.CurrentPosition);
+	}
+
+	[TestMethod]
+	public void Redo_CommandThrowsException_LeavesPositionUnchanged()
+	{
+		// Arrange: A's Execute fails once it is redone
+		UndoRedoService stack = CreateService();
+		int value = 0;
+		bool failExecute = false;
+
+		stack.Execute(new DelegateCommand("A", () =>
+		{
+			if (failExecute)
+			{
+				throw new InvalidOperationException();
+			}
+
+			value = 1;
+		}, () => value = 0));
+		stack.Undo();
+		failExecute = true;
+
+		// Act
+		Assert.ThrowsExactly<InvalidOperationException>(() => stack.Redo());
+
+		// Assert: nothing was reapplied, so the stack must not have moved
+		Assert.AreEqual(-1, stack.CurrentPosition, "A failed Redo must not move the stack position");
+		Assert.IsFalse(stack.CanUndo, "A command that failed to redo must not become undoable");
+		Assert.IsTrue(stack.CanRedo, "The command that failed to redo must still be redoable");
+		Assert.AreEqual(0, value);
+
+		// And the failed command can be redone once it succeeds
+		failExecute = false;
+		stack.Redo();
+		Assert.AreEqual(1, value);
+		Assert.AreEqual(0, stack.CurrentPosition);
+	}
+
+	[TestMethod]
+	public async Task UndoToSaveBoundary_CommandThrowsException_StopsWithAccuratePosition()
+	{
+		// Arrange: save at A, then B and C, where B's Undo throws
+		UndoRedoService stack = CreateService();
+		int value = 0;
+
+		stack.Execute(new DelegateCommand("A", () => value = 1, () => value = 0));
+		stack.MarkAsSaved("after A");
+		stack.Execute(new DelegateCommand("B", () => value = 2, () => throw new InvalidOperationException()));
+		stack.Execute(new DelegateCommand("C", () => value = 3, () => value = 2));
+
+		// Act
+		await Assert.ThrowsExactlyAsync<InvalidOperationException>(() =>
+			stack.UndoToSaveBoundaryAsync(stack.SaveBoundaries[0], navigateToLastChange: false)).ConfigureAwait(false);
+
+		// Assert: C was undone, B was not, and the position says exactly that
+		Assert.AreEqual(2, value);
+		Assert.AreEqual(1, stack.CurrentPosition, "The position must stop on the command that failed to undo");
+		Assert.IsTrue(stack.CanRedo, "C was undone, so it must be redoable");
+	}
+
+	[TestMethod]
 	public async Task UndoToSaveBoundary_WhenAlreadyAtPosition_ReturnsFalse()
 	{
 		// Arrange

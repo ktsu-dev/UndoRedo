@@ -149,13 +149,16 @@ public sealed class UndoRedoService(
 	/// <inheritdoc />
 	public async Task<bool> UndoAsync(bool navigateToChange = true, CancellationToken cancellationToken = default)
 	{
-		ICommand? command = _stackManager.MovePrevious();
+		ICommand? command = _stackManager.GetCurrentCommand();
 		if (command == null)
 		{
 			return false;
 		}
 
+		// Undo the real state change before moving the position, so a command that throws leaves the
+		// stack describing what is actually applied. This mirrors Execute() above.
 		command.Undo();
+		_stackManager.MovePrevious();
 		CommandUndone?.Invoke(this, new CommandUndoneEventArgs(command, _stackManager.CurrentPosition));
 
 		if (navigateToChange && _options.EnableNavigation && _navigationProvider != null && !string.IsNullOrEmpty(command.NavigationContext))
@@ -182,13 +185,16 @@ public sealed class UndoRedoService(
 	/// <inheritdoc />
 	public async Task<bool> RedoAsync(bool navigateToChange = true, CancellationToken cancellationToken = default)
 	{
-		ICommand? command = _stackManager.MoveNext();
-		if (command == null)
+		if (!_stackManager.CanRedo)
 		{
 			return false;
 		}
 
+		// Reapply the real state change before moving the position, so a command that throws can still
+		// be redone and is never undone without having been applied. This mirrors Execute() above.
+		ICommand command = _stackManager.Commands[_stackManager.CurrentPosition + 1];
 		command.Execute();
+		_stackManager.MoveNext();
 		CommandRedone?.Invoke(this, new CommandRedoneEventArgs(command, _stackManager.CurrentPosition));
 
 		if (navigateToChange && _options.EnableNavigation && _navigationProvider != null && !string.IsNullOrEmpty(command.NavigationContext))
@@ -243,13 +249,15 @@ public sealed class UndoRedoService(
 		ICommand? lastCommand = null;
 		while (_stackManager.CurrentPosition > saveBoundary.Position)
 		{
-			ICommand? command = _stackManager.MovePrevious();
+			ICommand? command = _stackManager.GetCurrentCommand();
 			if (command == null)
 			{
 				break;
 			}
 
+			// Stop at the first failure with the position still on the command that failed to undo
 			command.Undo();
+			_stackManager.MovePrevious();
 			lastCommand = command;
 			CommandUndone?.Invoke(this, new CommandUndoneEventArgs(command, _stackManager.CurrentPosition));
 		}
