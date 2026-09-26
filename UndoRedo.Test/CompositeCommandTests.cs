@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using ktsu.UndoRedo;
+using ktsu.UndoRedo.Core.Services;
 
 [TestClass]
 public class CompositeCommandTests
@@ -74,7 +75,7 @@ public class CompositeCommandTests
 	private static readonly string[] expected = ["A", "B", "C"];
 
 	[TestMethod]
-	public void CompositeCommand_UndoFailure_DoesNotAffectOtherCommands()
+	public void CompositeCommand_UndoFailure_LeavesEveryCommandApplied()
 	{
 		// Arrange
 		List<string> values = [];
@@ -104,12 +105,50 @@ public class CompositeCommandTests
 		// Make undo fail for middle command
 		shouldFailUndo = true;
 
-		// Assert - Undo should throw but still attempt to undo all commands
+		// Assert - Undo should throw and restore C, which it had already undone
 		Assert.ThrowsExactly<InvalidOperationException>(composite.Undo);
+		CollectionAssert.AreEqual(expected, values, "A failed Undo should leave the composite fully applied");
+	}
 
-		// Commands should still be partially undone (C and A undone from end, B failed)
-		Assert.HasCount(1, values);
-		Assert.AreEqual("A", values[0]);  // A remains because B's undo failed, C was undone, A tried to undo but only removes from end
+	[TestMethod]
+	public void CompositeCommand_UndoFailureThenRetry_UndoesEachCommandOnce()
+	{
+		// Arrange: b's undo fails once
+		UndoRedoService stack = new(new StackManager(), new SaveBoundaryManager(), new CommandMerger());
+		int a = 0;
+		int b = 0;
+		bool failUndo = true;
+
+		CompositeCommand composite = new("Move and resize",
+		[
+			new DelegateCommand("a", () => a++, () => a--),
+			new DelegateCommand("b", () => b++, () =>
+			{
+				if (failUndo)
+				{
+					throw new InvalidOperationException("b undo fails");
+				}
+
+				b--;
+			}),
+		]);
+
+		stack.Execute(composite);
+
+		// Act
+		Assert.ThrowsExactly<InvalidOperationException>(() => stack.Undo());
+
+		// Assert: the stack did not move, so nothing may have been undone
+		Assert.AreEqual(0, stack.CurrentPosition);
+		Assert.AreEqual(1, a, "A failed Undo should leave a applied");
+		Assert.AreEqual(1, b, "A failed Undo should leave b applied");
+
+		failUndo = false;
+		stack.Undo();
+
+		Assert.AreEqual(-1, stack.CurrentPosition);
+		Assert.AreEqual(0, a, "Retrying Undo should undo a exactly once");
+		Assert.AreEqual(0, b, "Retrying Undo should undo b exactly once");
 	}
 
 	[TestMethod]
