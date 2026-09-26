@@ -145,9 +145,15 @@ public class JsonUndoRedoSerializer(JsonSerializerOptions? options = null) : IUn
 		}
 
 		// For commands that implement ISerializableCommand, try to reconstruct them
-		Type? commandType = Type.GetType(serializableCommand.Type);
+		Type? commandType = ResolveCommandType(serializableCommand.Type);
 		if (commandType != null && typeof(ISerializableCommand).IsAssignableFrom(commandType))
 		{
+			if (!typeof(ICommand).IsAssignableFrom(commandType))
+			{
+				throw new InvalidOperationException(
+					$"Cannot reconstruct command type '{commandType.FullName}': it implements {nameof(ISerializableCommand)} but not {nameof(ICommand)}.");
+			}
+
 			ISerializableCommand? instance;
 			try
 			{
@@ -163,12 +169,40 @@ public class JsonUndoRedoSerializer(JsonSerializerOptions? options = null) : IUn
 					ex);
 			}
 
-			instance?.DeserializeData(serializableCommand.Data!);
+			try
+			{
+				instance?.DeserializeData(serializableCommand.Data!);
+			}
+#pragma warning disable CA1031 // Do not catch general exception types
+			catch (Exception ex) when (ex is not OperationCanceledException)
+#pragma warning restore CA1031 // Do not catch general exception types
+			{
+				// DeserializeData is the command's own parser, so it can throw anything. Report it
+				// through the deserialization contract so LoadStateAsync returns false.
+				throw new InvalidOperationException(
+					$"Cannot reconstruct command type '{commandType.FullName}': its {nameof(ISerializableCommand.DeserializeData)} rejected the saved data.",
+					ex);
+			}
+
 			return (ICommand)instance!;
 		}
 
 		// Fallback to placeholder
 		return new PlaceholderCommand(serializableCommand.Description, serializableCommand.NavigationContext, serializableCommand.Metadata);
+	}
+
+	private static Type? ResolveCommandType(string typeName)
+	{
+		try
+		{
+			return Type.GetType(typeName);
+		}
+		catch (Exception ex) when (ex is IOException or BadImageFormatException or ArgumentException or TypeLoadException)
+		{
+			// Type.GetType returns null for a type it cannot find, but still throws for a malformed
+			// assembly-qualified name or an assembly that fails to load.
+			throw new InvalidOperationException($"Cannot resolve command type '{typeName}'.", ex);
+		}
 	}
 
 	/// <summary>
