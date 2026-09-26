@@ -350,6 +350,13 @@ public sealed class UndoRedoService(
 	{
 		Ensure.NotNull(state);
 
+		// Validate everything before clearing, so a state that cannot be loaded leaves the current
+		// history untouched instead of wiping it and then failing partway through.
+		if (!IsRestorable(state))
+		{
+			return false;
+		}
+
 		try
 		{
 			_stackManager.Clear();
@@ -383,4 +390,12 @@ public sealed class UndoRedoService(
 			return false;
 		}
 	}
+
+	private static bool IsRestorable(UndoRedoStackState state) =>
+		state.Commands is not null &&
+		state.SaveBoundaries is not null &&
+		!state.Commands.Any(command => command is null) &&
+		!state.SaveBoundaries.Any(boundary => boundary is null) &&
+		state.CurrentPosition >= -1 &&
+		state.CurrentPosition < state.Commands.Count;
 }
