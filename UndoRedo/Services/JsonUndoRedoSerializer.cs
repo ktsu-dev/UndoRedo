@@ -67,10 +67,12 @@ public class JsonUndoRedoSerializer(JsonSerializerOptions? options = null) : IUn
 		SerializableStackState serializableState = await JsonSerializer.DeserializeAsync<SerializableStackState>(stream, _options, cancellationToken).ConfigureAwait(false)
 			?? throw new InvalidOperationException("Failed to deserialize stack state");
 
-		if (!SupportsVersion(serializableState.FormatVersion))
+		if (serializableState.FormatVersion is null || !SupportsVersion(serializableState.FormatVersion))
 		{
 			throw new NotSupportedException($"Unsupported format version: {serializableState.FormatVersion}");
 		}
+
+		ValidateShape(serializableState);
 
 		List<ICommand> commands = [.. serializableState.Commands.Select(ConvertFromSerializableCommand)];
 		return new UndoRedoStackState(
@@ -79,6 +81,43 @@ public class JsonUndoRedoSerializer(JsonSerializerOptions? options = null) : IUn
 			serializableState.SaveBoundaries,
 			serializableState.FormatVersion,
 			serializableState.Timestamp);
+	}
+
+	/// <summary>
+	/// Rejects data that parsed as JSON but is missing fields the stack needs, such as a truncated or
+	/// hand-edited file. Throws <see cref="InvalidOperationException"/>, which the deserialization
+	/// contract already covers, so LoadStateAsync reports false instead of letting a
+	/// NullReferenceException or ArgumentNullException escape.
+	/// </summary>
+	private static void ValidateShape(SerializableStackState state)
+	{
+		if (state.Commands is null)
+		{
+			throw new InvalidOperationException("Stack state has no commands list");
+		}
+
+		if (state.SaveBoundaries is null)
+		{
+			throw new InvalidOperationException("Stack state has no save boundaries list");
+		}
+
+		if (state.SaveBoundaries.Any(boundary => boundary is null))
+		{
+			throw new InvalidOperationException("Stack state contains a null save boundary");
+		}
+
+		foreach (SerializableCommand? command in state.Commands)
+		{
+			if (command is null)
+			{
+				throw new InvalidOperationException("Stack state contains a null command");
+			}
+
+			if (command.Metadata is null)
+			{
+				throw new InvalidOperationException($"Command '{command.Description}' has no metadata");
+			}
+		}
 	}
 
 	private static SerializableCommand ConvertToSerializableCommand(ICommand command)

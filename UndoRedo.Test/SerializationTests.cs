@@ -392,6 +392,81 @@ public class SerializationTests
 		Assert.IsInstanceOfType<MissingMethodException>(ex.InnerException, "The underlying reflection failure should be preserved");
 	}
 
+	[TestMethod]
+	[DataRow("""{"commands":[{"type":"x","description":"d"}],"currentPosition":0,"saveBoundaries":[],"formatVersion":"json-v1.0"}""", DisplayName = "command without metadata")]
+	[DataRow("""{"commands":null,"currentPosition":0,"saveBoundaries":[],"formatVersion":"json-v1.0"}""", DisplayName = "null commands")]
+	[DataRow("""{"commands":[null],"currentPosition":0,"saveBoundaries":[],"formatVersion":"json-v1.0"}""", DisplayName = "null command entry")]
+	[DataRow("""{"commands":[],"currentPosition":-1,"saveBoundaries":null,"formatVersion":"json-v1.0"}""", DisplayName = "null save boundaries")]
+	[DataRow("""{"commands":[],"currentPosition":-1,"saveBoundaries":[null],"formatVersion":"json-v1.0"}""", DisplayName = "null save boundary entry")]
+	[DataRow("""{"commands":[],"currentPosition":-1,"saveBoundaries":[],"formatVersion":null}""", DisplayName = "null format version")]
+	public async Task UndoRedoService_LoadStateMalformed_ReturnsFalseAndKeepsHistory(string json)
+	{
+		// Arrange: a stack with history the user would lose if a bad load cleared it
+		UndoRedoService stack = CreateService();
+		stack.SetSerializer(new JsonUndoRedoSerializer());
+		int value = 0;
+		stack.Execute(new DelegateCommand("A", () => value = 1, () => value = 0));
+		stack.Execute(new DelegateCommand("B", () => value = 2, () => value = 1));
+		stack.MarkAsSaved("after B");
+		await stack.UndoAsync().ConfigureAwait(false);
+
+		// Act
+		bool success = await stack.LoadStateAsync(System.Text.Encoding.UTF8.GetBytes(json)).ConfigureAwait(false);
+
+		// Assert
+		Assert.IsFalse(success, "LoadStateAsync should return false for data it cannot load");
+		Assert.AreEqual(2, stack.CommandCount, "A failed load should keep the existing commands");
+		Assert.AreEqual(0, stack.CurrentPosition, "A failed load should keep the existing position");
+		Assert.HasCount(1, stack.SaveBoundaries, "A failed load should keep the existing save boundaries");
+		Assert.AreEqual(1, value);
+	}
+
+	[TestMethod]
+	[DataRow(2, DisplayName = "position past the last command")]
+	[DataRow(-2, DisplayName = "position before the start")]
+	public void UndoRedoService_RestoreFromStateInvalidPosition_ReturnsFalseAndKeepsHistory(int position)
+	{
+		// Arrange
+		UndoRedoService stack = CreateService();
+		stack.Execute(new DelegateCommand("A", () => { }, () => { }));
+		stack.MarkAsSaved();
+
+		UndoRedoStackState state = new(
+			[new DelegateCommand("X", () => { }, () => { }), new DelegateCommand("Y", () => { }, () => { })],
+			position,
+			[],
+			"1.0",
+			DateTime.UtcNow);
+
+		// Act
+		bool success = stack.RestoreFromState(state);
+
+		// Assert
+		Assert.IsFalse(success, "RestoreFromState should reject a position outside the commands");
+		Assert.AreEqual(1, stack.CommandCount, "A failed restore should keep the existing commands");
+		Assert.AreEqual(0, stack.CurrentPosition, "A failed restore should keep the existing position");
+		Assert.HasCount(1, stack.SaveBoundaries, "A failed restore should keep the existing save boundaries");
+	}
+
+	[TestMethod]
+	public void UndoRedoService_RestoreFromStateNullSaveBoundaries_ReturnsFalseAndKeepsHistory()
+	{
+		// Arrange
+		UndoRedoService stack = CreateService();
+		stack.Execute(new DelegateCommand("A", () => { }, () => { }));
+		stack.MarkAsSaved();
+
+		UndoRedoStackState state = new([], -1, null!, "1.0", DateTime.UtcNow);
+
+		// Act
+		bool success = stack.RestoreFromState(state);
+
+		// Assert
+		Assert.IsFalse(success, "RestoreFromState should reject a state with no save boundaries list");
+		Assert.AreEqual(1, stack.CommandCount, "A failed restore should keep the existing commands");
+		Assert.HasCount(1, stack.SaveBoundaries, "A failed restore should keep the existing save boundaries");
+	}
+
 	private sealed class ConstructorOnlySerializableCommand(string value)
 		: BaseCommand(ChangeType.Modify, ["test"]), ISerializableCommand
 	{
