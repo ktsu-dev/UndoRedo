@@ -403,6 +403,55 @@ public class UndoRedoStackTests
 	}
 
 	[TestMethod]
+	public void CommandMerging_AfterMarkAsSaved_KeepsTheSaveBoundary()
+	{
+		// Arrange
+		UndoRedoOptions options = UndoRedoOptions.Create(autoMerge: true);
+		UndoRedoService stack = new(new StackManager(), new SaveBoundaryManager(), new CommandMerger(), options);
+		List<char> value = [];
+
+		stack.Execute(new TestInsertMergeCommand(value, 0, "a"));
+		stack.MarkAsSaved();
+
+		// Act
+		stack.Execute(new TestInsertMergeCommand(value, 1, "b"));
+
+		// Assert
+		Assert.AreEqual("ab", new string([.. value]));
+		Assert.AreEqual(2, stack.CommandCount, "An edit after a save should not merge into the saved command");
+		Assert.HasCount(1, stack.SaveBoundaries, "The save boundary should survive the next edit");
+		Assert.IsTrue(stack.HasUnsavedChanges, "The edit after the save should be unsaved");
+
+		stack.Undo();
+		Assert.AreEqual("a", new string([.. value]), "Undo should return to the saved text");
+		Assert.IsFalse(stack.HasUnsavedChanges, "Undo back to the save should leave the stack clean");
+	}
+
+	[TestMethod]
+	public void CommandMerging_AfterMarkAsSaved_MergesLaterEditsWithEachOther()
+	{
+		// Arrange
+		UndoRedoOptions options = UndoRedoOptions.Create(autoMerge: true);
+		UndoRedoService stack = new(new StackManager(), new SaveBoundaryManager(), new CommandMerger(), options);
+		List<char> value = [];
+
+		stack.Execute(new TestInsertMergeCommand(value, 0, "a"));
+		stack.MarkAsSaved();
+
+		// Act
+		stack.Execute(new TestInsertMergeCommand(value, 1, "b"));
+		stack.Execute(new TestInsertMergeCommand(value, 2, "c"));
+
+		// Assert
+		Assert.AreEqual("abc", new string([.. value]));
+		Assert.AreEqual(2, stack.CommandCount, "Edits with no save between them should still merge");
+
+		stack.Undo();
+		Assert.AreEqual("a", new string([.. value]), "Undo should revert the merged post-save edits together");
+		Assert.IsFalse(stack.HasUnsavedChanges);
+	}
+
+	[TestMethod]
 	public void CompositeCommand_NestedComposites_HandlesCorrectly()
 	{
 		// Arrange

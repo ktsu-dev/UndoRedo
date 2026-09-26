@@ -70,13 +70,17 @@ public sealed class UndoRedoService(
 	/// <param name="navigationProvider">The navigation provider</param>
 	public void SetNavigationProvider(INavigationProvider? navigationProvider) => _navigationProvider = navigationProvider;
 
+	private bool IsAtSaveBoundary(int position) => _saveBoundaryManager.SaveBoundaries.Any(boundary => boundary.Position == position);
+
 	/// <inheritdoc />
 	public void Execute(ICommand command)
 	{
 		Ensure.NotNull(command);
 
-		// Try to merge with the last command if auto-merge is enabled
-		if (_options.AutoMergeCommands && _stackManager.CanUndo)
+		// Try to merge with the last command if auto-merge is enabled. Never merge into a command that
+		// ends at a save boundary: that would fold the new edit into the saved state and delete the
+		// boundary, so Undo could never return to what was saved.
+		if (_options.AutoMergeCommands && _stackManager.CanUndo && !IsAtSaveBoundary(_stackManager.CurrentPosition))
 		{
 			ICommand? lastCommand = _stackManager.GetCurrentCommand();
 			if (lastCommand != null && _commandMerger.CanMerge(lastCommand, command))
