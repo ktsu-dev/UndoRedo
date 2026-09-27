@@ -1,4 +1,7 @@
-## v2.0.5
+## v2.0.6 (patch)
 
-No significant changes detected since v2.0.5.
+Changes since v2.0.5:
+
+- fix: show the window around the current position in GetChangeVisualizations [patch] ([@Claude](https://github.com/Claude))
+- fix: reject saved state with save boundaries outside the commands [patch] ([@Claude](https://github.com/Claude))
 
