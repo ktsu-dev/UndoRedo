@@ -24,19 +24,21 @@ public sealed class CompositeCommand : BaseCommand
 	/// <param name="commands">Commands to execute as a group</param>
 	/// <param name="navigationContext">Optional navigation context</param>
 	public CompositeCommand(string description, IEnumerable<ICommand> commands, string? navigationContext = null)
+		: this(description, Materialize(commands), navigationContext)
+	{
+	}
+
+	// Takes the one materialized list, so the caller's sequence is enumerated exactly once and the
+	// metadata is computed from the same commands that Execute and Undo run.
+	private CompositeCommand(string description, List<ICommand> commands, string? navigationContext)
 		: base(
 			ChangeType.Composite,
-			GetAffectedItems(commands),
+			[.. commands.SelectMany(c => c.Metadata.AffectedItems).Distinct()],
 			navigationContext,
-			GetTotalSize(commands))
+			commands.Sum(c => c.Metadata.Size))
 	{
 		Description = description;
-		_commands = [.. commands];
-
-		if (_commands.Count == 0)
-		{
-			throw new ArgumentException("Composite command must contain at least one command", nameof(commands));
-		}
+		_commands = commands;
 	}
 
 	/// <inheritdoc />
@@ -114,15 +116,20 @@ public sealed class CompositeCommand : BaseCommand
 	/// <inheritdoc />
 	public override ICommand MergeWith(ICommand other) => throw new NotSupportedException("Composite commands cannot be merged");
 
-	private static IReadOnlyList<string> GetAffectedItems(IEnumerable<ICommand> commands)
+	private static List<ICommand> Materialize(IEnumerable<ICommand> commands)
 	{
-		List<ICommand> commandList = [.. commands];
-		return [.. commandList.SelectMany(c => c.Metadata.AffectedItems).Distinct()];
-	}
+		List<ICommand> commandList = [.. Ensure.NotNull(commands)];
 
-	private static int GetTotalSize(IEnumerable<ICommand> commands)
-	{
-		List<ICommand> commandList = [.. commands];
-		return commandList.Sum(c => c.Metadata.Size);
+		if (commandList.Count == 0)
+		{
+			throw new ArgumentException("Composite command must contain at least one command", nameof(commands));
+		}
+
+		if (commandList.Contains(null!))
+		{
+			throw new ArgumentException("Composite command cannot contain a null command", nameof(commands));
+		}
+
+		return commandList;
 	}
 }

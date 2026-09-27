@@ -269,4 +269,78 @@ public class CompositeCommandTests
 		Assert.IsEmpty(values);
 		Assert.IsLessThan(1000L, stopwatch.ElapsedMilliseconds, "Undo should be fast");
 	}
+
+	[TestMethod]
+	public void CompositeCommand_SinglePassSequence_KeepsEveryCommandAndItsMetadata()
+	{
+		// Arrange
+		List<string> values = [];
+
+		// Act
+		CompositeCommand composite = new("Single pass", SinglePass(values));
+		composite.Execute();
+
+		// Assert
+		Assert.HasCount(2, composite.Commands);
+		CollectionAssert.AreEqual(new List<string> { "A", "B" }, values);
+		CollectionAssert.AreEqual(new List<string> { "item-A", "item-B" }, composite.Metadata.AffectedItems.ToList());
+		Assert.AreEqual(5, composite.Metadata.Size);
+	}
+
+	[TestMethod]
+	public void CompositeCommand_LazyFactory_RunsOncePerCommand()
+	{
+		// Arrange
+		int created = 0;
+		IEnumerable<ICommand> commands = Enumerable.Range(0, 3).Select(i =>
+		{
+			created++;
+			return (ICommand)new DelegateCommand($"Command {i}", () => { }, () => { }, affectedItems: [$"item-{i}"], size: 1);
+		});
+
+		// Act
+		CompositeCommand composite = new("Lazy", commands);
+
+		// Assert
+		Assert.AreEqual(3, created);
+		Assert.HasCount(3, composite.Metadata.AffectedItems);
+		Assert.AreEqual(3, composite.Metadata.Size);
+	}
+
+	[TestMethod]
+	public void CompositeCommand_NullElement_ThrowsArgumentException()
+	{
+		// Arrange
+		ICommand[] commands = [new DelegateCommand("Ok", () => { }, () => { }), null!];
+
+		// Act & Assert
+		Assert.ThrowsExactly<ArgumentException>(() => new CompositeCommand("Null element", commands));
+	}
+
+	private static SinglePassSequence SinglePass(List<string> values) => new(
+	[
+		new DelegateCommand("Add A", () => values.Add("A"), () => values.RemoveAt(values.Count - 1), affectedItems: ["item-A"], size: 2),
+		new DelegateCommand("Add B", () => values.Add("B"), () => values.RemoveAt(values.Count - 1), affectedItems: ["item-B"], size: 3),
+	]);
+
+	/// <summary>
+	/// A sequence that yields its items only on the first enumeration, like a stream or a database cursor.
+	/// </summary>
+	private sealed class SinglePassSequence(IEnumerable<ICommand> items) : IEnumerable<ICommand>
+	{
+		private bool enumerated;
+
+		public IEnumerator<ICommand> GetEnumerator()
+		{
+			if (enumerated)
+			{
+				return Enumerable.Empty<ICommand>().GetEnumerator();
+			}
+
+			enumerated = true;
+			return items.GetEnumerator();
+		}
+
+		System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
+	}
 }
