@@ -539,6 +539,66 @@ public class UndoRedoStackTests
 	}
 
 	[TestMethod]
+	public async Task UndoAsync_NavigationProviderThrows_ReturnsTrueWithUndoApplied()
+	{
+		// Arrange
+		UndoRedoService stack = CreateService();
+		stack.SetNavigationProvider(new ThrowingNavigationProvider());
+		int value = 0;
+		stack.Execute(new DelegateCommand("Increment", () => value++, () => value--, navigationContext: "editor"));
+
+		// Act
+		bool result = await stack.UndoAsync().ConfigureAwait(false);
+
+		// Assert
+		Assert.IsTrue(result, "UndoAsync should report the undo, which was applied before navigation failed");
+		Assert.AreEqual(0, value);
+		Assert.AreEqual(-1, stack.CurrentPosition);
+	}
+
+	[TestMethod]
+	public async Task RedoAsync_NavigationProviderThrows_ReturnsTrueWithRedoApplied()
+	{
+		// Arrange
+		UndoRedoService stack = CreateService();
+		stack.SetNavigationProvider(new ThrowingNavigationProvider());
+		int value = 0;
+		stack.Execute(new DelegateCommand("Increment", () => value++, () => value--, navigationContext: "editor"));
+		await stack.UndoAsync(navigateToChange: false).ConfigureAwait(false);
+
+		// Act
+		bool result = await stack.RedoAsync().ConfigureAwait(false);
+
+		// Assert
+		Assert.IsTrue(result, "RedoAsync should report the redo, which was applied before navigation failed");
+		Assert.AreEqual(1, value);
+		Assert.AreEqual(0, stack.CurrentPosition);
+	}
+
+	[TestMethod]
+	public async Task UndoToSaveBoundaryAsync_NavigationProviderThrows_ReturnsTrueAtBoundary()
+	{
+		// Arrange
+		UndoRedoService stack = CreateService();
+		stack.SetNavigationProvider(new ThrowingNavigationProvider());
+		int value = 0;
+		stack.Execute(new DelegateCommand("Increment", () => value++, () => value--, navigationContext: "editor"));
+		stack.MarkAsSaved();
+		stack.Execute(new DelegateCommand("Increment", () => value++, () => value--, navigationContext: "editor"));
+		stack.Execute(new DelegateCommand("Increment", () => value++, () => value--, navigationContext: "editor"));
+		SaveBoundary boundary = stack.SaveBoundaries[0];
+
+		// Act
+		bool result = await stack.UndoToSaveBoundaryAsync(boundary).ConfigureAwait(false);
+
+		// Assert
+		Assert.IsTrue(result, "UndoToSaveBoundaryAsync should report the undo, which was applied before navigation failed");
+		Assert.AreEqual(1, value);
+		Assert.AreEqual(0, stack.CurrentPosition);
+		Assert.IsFalse(stack.HasUnsavedChanges, "The stack should be back at the save boundary");
+	}
+
+	[TestMethod]
 	public void Execute_CommandThrowsException_DoesNotCorruptStack()
 	{
 		// Arrange
@@ -1100,6 +1160,14 @@ public class UndoRedoStackTests
 			TestInsertMergeCommand otherCmd = (TestInsertMergeCommand)other;
 			return new TestInsertMergeCommand(_target, _position, _text + otherCmd._text);
 		}
+	}
+
+	private sealed class ThrowingNavigationProvider : INavigationProvider
+	{
+		public Task<bool> NavigateToAsync(string context, CancellationToken cancellationToken = default) =>
+			throw new InvalidOperationException("editor closed");
+
+		public bool IsValidContext(string context) => true;
 	}
 
 	private sealed class SlowNavigationProvider : INavigationProvider
