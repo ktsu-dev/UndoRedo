@@ -128,7 +128,14 @@ public interface IUndoRedoService
 	/// <summary>
 	/// Gets change visualization data for the commands in the stack
 	/// </summary>
-	/// <param name="maxItems">Maximum number of items to return</param>
+	/// <remarks>
+	/// When the stack holds more than <paramref name="maxItems"/> commands, the result is the most
+	/// recent <paramref name="maxItems"/> commands. If the current position has been undone to before
+	/// that window, the window is centred on the current position instead, so it always contains the
+	/// current command along with the redoable commands after it. Each item's position is its
+	/// absolute index in the stack. The result is a snapshot taken at the time of the call.
+	/// </remarks>
+	/// <param name="maxItems">Maximum number of items to return; zero or less returns no items</param>
 	/// <returns>Visualization data for changes</returns>
 	public IEnumerable<ChangeVisualization> GetChangeVisualizations(int maxItems = 50);
 
