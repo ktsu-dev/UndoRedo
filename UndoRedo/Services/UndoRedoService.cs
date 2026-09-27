@@ -292,14 +292,32 @@ public sealed class UndoRedoService(
 		int currentPosition = _stackManager.CurrentPosition;
 		IReadOnlyList<SaveBoundary> saveBoundaries = _saveBoundaryManager.SaveBoundaries;
 
-		return commands
-			.Take(Math.Min(commands.Count, maxItems))
-			.Select((cmd, index) => new ChangeVisualization(
-				cmd,
-				index,
-				index <= currentPosition,
-				saveBoundaries.Any(sb => sb.Position == index)
-			));
+		if (maxItems <= 0 || commands.Count == 0)
+		{
+			return [];
+		}
+
+		// Show the most recent commands, unless the current position has been undone back past
+		// them; then centre the window on it so both its history and its redo commands show.
+		int take = Math.Min(commands.Count, maxItems);
+		int start = commands.Count - take;
+		if (currentPosition < start)
+		{
+			start = Math.Max(0, currentPosition - (take / 2));
+		}
+
+		return [.. commands
+			.Skip(start)
+			.Take(take)
+			.Select((cmd, offset) =>
+			{
+				int index = start + offset;
+				return new ChangeVisualization(
+					cmd,
+					index,
+					index <= currentPosition,
+					saveBoundaries.Any(sb => sb.Position == index));
+			})];
 	}
 
 	/// <inheritdoc />

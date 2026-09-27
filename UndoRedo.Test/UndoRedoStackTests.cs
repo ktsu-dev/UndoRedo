@@ -787,6 +787,121 @@ public class UndoRedoStackTests
 	}
 
 	[TestMethod]
+	public void GetChangeVisualizations_MoreCommandsThanLimit_IncludesCurrentPosition()
+	{
+		// Arrange
+		UndoRedoService stack = CreateService();
+		for (int i = 0; i < 60; i++)
+		{
+			stack.Execute(new DelegateCommand($"c{i}", () => { }, () => { }));
+		}
+
+		// Act
+		List<ChangeVisualization> visualizations = [.. stack.GetChangeVisualizations(50)];
+
+		// Assert
+		Assert.HasCount(50, visualizations);
+		Assert.AreEqual(10, visualizations[0].Position, "The window should hold the most recent commands");
+		Assert.AreEqual("c10", visualizations[0].Command.Description);
+		Assert.AreEqual(59, visualizations[^1].Position, "The window should end at the current position");
+		Assert.AreEqual("c59", visualizations[^1].Command.Description);
+		Assert.IsTrue(visualizations.All(v => v.IsExecuted));
+	}
+
+	[TestMethod]
+	public void GetChangeVisualizations_AfterUndo_IncludesRedoableCommands()
+	{
+		// Arrange
+		UndoRedoService stack = CreateService();
+		for (int i = 0; i < 60; i++)
+		{
+			stack.Execute(new DelegateCommand($"c{i}", () => { }, () => { }));
+		}
+
+		for (int i = 0; i < 5; i++)
+		{
+			stack.Undo();
+		}
+
+		// Act
+		List<ChangeVisualization> visualizations = [.. stack.GetChangeVisualizations(50)];
+
+		// Assert
+		Assert.HasCount(50, visualizations);
+		ChangeVisualization current = visualizations.Single(v => v.Position == 54);
+		Assert.IsTrue(current.IsExecuted, "The current command should be marked executed");
+		List<ChangeVisualization> redoable = [.. visualizations.Where(v => v.Position > 54)];
+		Assert.HasCount(5, redoable, "The redoable commands should be in the window");
+		Assert.IsTrue(redoable.All(v => !v.IsExecuted), "Redoable commands should be marked not executed");
+	}
+
+	[TestMethod]
+	public void GetChangeVisualizations_CurrentPositionBeforeRecentWindow_IncludesCurrentPosition()
+	{
+		// Arrange
+		UndoRedoService stack = CreateService();
+		for (int i = 0; i < 60; i++)
+		{
+			stack.Execute(new DelegateCommand($"c{i}", () => { }, () => { }));
+		}
+
+		for (int i = 0; i < 40; i++)
+		{
+			stack.Undo();
+		}
+
+		// Act
+		List<ChangeVisualization> visualizations = [.. stack.GetChangeVisualizations(10)];
+
+		// Assert
+		Assert.HasCount(10, visualizations);
+		Assert.IsTrue(visualizations.Any(v => v.Position == 19), "The window should contain the current position");
+		Assert.IsTrue(visualizations.Any(v => v.Position > 19), "The window should include redoable commands");
+		Assert.IsTrue(visualizations.All(v => v.Command.Description == $"c{v.Position}"), "Positions should be absolute stack indices");
+		Assert.IsTrue(visualizations.All(v => v.IsExecuted == (v.Position <= 19)));
+	}
+
+	[TestMethod]
+	public void GetChangeVisualizations_WindowedSaveBoundary_UsesAbsolutePosition()
+	{
+		// Arrange
+		UndoRedoService stack = CreateService();
+		for (int i = 0; i < 10; i++)
+		{
+			stack.Execute(new DelegateCommand($"c{i}", () => { }, () => { }));
+			if (i == 7)
+			{
+				stack.MarkAsSaved();
+			}
+		}
+
+		// Act
+		List<ChangeVisualization> visualizations = [.. stack.GetChangeVisualizations(5)];
+
+		// Assert
+		Assert.AreEqual(5, visualizations[0].Position);
+		List<ChangeVisualization> saved = [.. visualizations.Where(v => v.HasSaveBoundary)];
+		Assert.HasCount(1, saved);
+		Assert.AreEqual(7, saved[0].Position);
+	}
+
+	[TestMethod]
+	[DataRow(0)]
+	[DataRow(-3)]
+	public void GetChangeVisualizations_NonPositiveLimit_ReturnsEmpty(int maxItems)
+	{
+		// Arrange
+		UndoRedoService stack = CreateService();
+		stack.Execute(new DelegateCommand("c0", () => { }, () => { }));
+
+		// Act
+		List<ChangeVisualization> visualizations = [.. stack.GetChangeVisualizations(maxItems)];
+
+		// Assert
+		Assert.IsEmpty(visualizations);
+	}
+
+	[TestMethod]
 	public void Clear_WithSaveBoundariesAndCommands_ClearsEverything()
 	{
 		// Arrange
