@@ -1,7 +1,7 @@
-## v2.0.6 (patch)
+## v2.0.7 (patch)
 
-Changes since v2.0.5:
+Changes since v2.0.6:
 
-- fix: show the window around the current position in GetChangeVisualizations [patch] ([@Claude](https://github.com/Claude))
-- fix: reject saved state with save boundaries outside the commands [patch] ([@Claude](https://github.com/Claude))
+- Merge remote-tracking branch 'origin/main' into claude/undoredo-93-bad-command-type ([@Claude](https://github.com/Claude))
+- fix: report every unloadable saved command as a failed load [patch] ([@Claude](https://github.com/Claude))
 
