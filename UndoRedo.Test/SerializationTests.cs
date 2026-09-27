@@ -545,6 +545,111 @@ public class SerializationTests
 		Assert.AreEqual(0, stack.SaveBoundaries[0].Position, "A failed load should keep the existing save boundary position");
 	}
 
+	private const string MalformedAssemblyName = "malformed assembly name";
+	private const string InvalidVersion = "invalid assembly version";
+	private const string NotACommand = "serializable type that is not a command";
+	private const string DataParseFailure = "command data its parser rejects";
+
+	private static async Task<byte[]> SerializeWithCommandTypeAsync(string caseName)
+	{
+		string type = caseName switch
+		{
+			MalformedAssemblyName => "Foo, =bad",
+			InvalidVersion => "Foo, Bar, Version=abc",
+			NotACommand => typeof(SerializableNonCommand).AssemblyQualifiedName!,
+			DataParseFailure => typeof(IntParsingSerializableCommand).AssemblyQualifiedName!,
+			_ => throw new ArgumentOutOfRangeException(nameof(caseName)),
+		};
+
+		JsonUndoRedoSerializer serializer = new();
+		byte[] data = await serializer.SerializeAsync([new TestSerializableCommand("saved")], 0, []).ConfigureAwait(false);
+		System.Text.Json.Nodes.JsonNode root = System.Text.Json.Nodes.JsonNode.Parse(data)!;
+		System.Text.Json.Nodes.JsonObject command = root["commands"]![0]!.AsObject();
+		string typeKey = command.Single(p => p.Key.Equals("type", StringComparison.OrdinalIgnoreCase)).Key;
+		string dataKey = command.Single(p => p.Key.Equals("data", StringComparison.OrdinalIgnoreCase)).Key;
+		command[typeKey] = type;
+		command[dataKey] = "abc";
+		return System.Text.Encoding.UTF8.GetBytes(root.ToJsonString());
+	}
+
+	[TestMethod]
+	[DataRow(MalformedAssemblyName)]
+	[DataRow(InvalidVersion)]
+	[DataRow(NotACommand)]
+	[DataRow(DataParseFailure)]
+	public async Task JsonSerializer_DeserializeUnloadableCommand_ThrowsInvalidOperationException(string caseName)
+	{
+		// Arrange
+		byte[] data = await SerializeWithCommandTypeAsync(caseName).ConfigureAwait(false);
+		JsonUndoRedoSerializer serializer = new();
+
+		// Act & Assert: every way a command can fail to load is reported through the deserialization
+		// contract rather than as the raw reflection, cast or parse error
+		await Assert.ThrowsExactlyAsync<InvalidOperationException>(
+			() => serializer.DeserializeAsync(data)).ConfigureAwait(false);
+	}
+
+	[TestMethod]
+	[DataRow(MalformedAssemblyName)]
+	[DataRow(InvalidVersion)]
+	[DataRow(NotACommand)]
+	[DataRow(DataParseFailure)]
+	public async Task UndoRedoService_LoadStateUnloadableCommand_ReturnsFalseAndKeepsHistory(string caseName)
+	{
+		// Arrange
+		byte[] data = await SerializeWithCommandTypeAsync(caseName).ConfigureAwait(false);
+		UndoRedoService stack = CreateService();
+		stack.SetSerializer(new JsonUndoRedoSerializer());
+		stack.Execute(new DelegateCommand("A", () => { }, () => { }));
+
+		// Act
+		bool success = await stack.LoadStateAsync(data).ConfigureAwait(false);
+
+		// Assert
+		Assert.IsFalse(success, "LoadStateAsync should return false when a command cannot be loaded");
+		Assert.AreEqual(1, stack.CommandCount, "A failed load should keep the existing commands");
+		Assert.AreEqual("A", stack.Commands[0].Description);
+	}
+
+#pragma warning disable CA1812 // Instantiated by reflection during deserialization
+	private sealed class SerializableNonCommand : ISerializableCommand
+	{
+		public string SerializeData() => string.Empty;
+
+		public void DeserializeData(string data)
+		{
+			// Nothing to restore
+		}
+	}
+#pragma warning restore CA1812
+
+#pragma warning disable CA1812 // Instantiated by reflection during deserialization
+	private sealed class IntParsingSerializableCommand : BaseCommand, ISerializableCommand
+	{
+		public IntParsingSerializableCommand() : base(ChangeType.Modify, ["test"])
+		{
+		}
+
+		public int Value { get; private set; }
+
+		public override string Description => $"Int command with value: {Value}";
+
+		public override void Execute()
+		{
+			// Test implementation
+		}
+
+		public override void Undo()
+		{
+			// Test implementation
+		}
+
+		public string SerializeData() => Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+		public void DeserializeData(string data) => Value = int.Parse(data, System.Globalization.CultureInfo.InvariantCulture);
+	}
+#pragma warning restore CA1812
+
 	private sealed class ConstructorOnlySerializableCommand(string value)
 		: BaseCommand(ChangeType.Modify, ["test"]), ISerializableCommand
 	{
