@@ -165,19 +165,9 @@ public sealed class UndoRedoService(
 		_stackManager.MovePrevious();
 		CommandUndone?.Invoke(this, new CommandUndoneEventArgs(command, _stackManager.CurrentPosition));
 
-		if (navigateToChange && _options.EnableNavigation && _navigationProvider != null && !string.IsNullOrEmpty(command.NavigationContext))
+		if (navigateToChange)
 		{
-			using CancellationTokenSource cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-			cts.CancelAfter(_options.EffectiveNavigationTimeout);
-
-			try
-			{
-				await _navigationProvider.NavigateToAsync(command.NavigationContext!, cts.Token).ConfigureAwait(false);
-			}
-			catch (OperationCanceledException)
-			{
-				// Navigation timeout or cancellation - not critical
-			}
+			await NavigateSafelyAsync(command.NavigationContext, cancellationToken).ConfigureAwait(false);
 		}
 
 		return true;
@@ -201,19 +191,9 @@ public sealed class UndoRedoService(
 		_stackManager.MoveNext();
 		CommandRedone?.Invoke(this, new CommandRedoneEventArgs(command, _stackManager.CurrentPosition));
 
-		if (navigateToChange && _options.EnableNavigation && _navigationProvider != null && !string.IsNullOrEmpty(command.NavigationContext))
+		if (navigateToChange)
 		{
-			using CancellationTokenSource cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-			cts.CancelAfter(_options.EffectiveNavigationTimeout);
-
-			try
-			{
-				await _navigationProvider.NavigateToAsync(command.NavigationContext!, cts.Token).ConfigureAwait(false);
-			}
-			catch (OperationCanceledException)
-			{
-				// Navigation timeout or cancellation - not critical
-			}
+			await NavigateSafelyAsync(command.NavigationContext, cancellationToken).ConfigureAwait(false);
 		}
 
 		return true;
@@ -266,23 +246,39 @@ public sealed class UndoRedoService(
 			CommandUndone?.Invoke(this, new CommandUndoneEventArgs(command, _stackManager.CurrentPosition));
 		}
 
-		if (navigateToLastChange && lastCommand != null && _options.EnableNavigation && _navigationProvider != null &&
-			!string.IsNullOrEmpty(lastCommand.NavigationContext))
+		if (navigateToLastChange && lastCommand != null)
 		{
-			using CancellationTokenSource cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-			cts.CancelAfter(_options.EffectiveNavigationTimeout);
-
-			try
-			{
-				await _navigationProvider.NavigateToAsync(lastCommand.NavigationContext!, cts.Token).ConfigureAwait(false);
-			}
-			catch (OperationCanceledException)
-			{
-				// Navigation timeout or cancellation - not critical
-			}
+			await NavigateSafelyAsync(lastCommand.NavigationContext, cancellationToken).ConfigureAwait(false);
 		}
 
 		return true;
+	}
+
+	/// <summary>
+	/// Navigates to where a change was made, after the undo or redo has already been applied.
+	/// Navigation is best effort: any failure is swallowed, because an exception here would tell the
+	/// caller the undo or redo did not happen when it did, and a retry would then undo a second command.
+	/// </summary>
+	private async Task NavigateSafelyAsync(string? navigationContext, CancellationToken cancellationToken)
+	{
+		if (!_options.EnableNavigation || _navigationProvider == null || string.IsNullOrEmpty(navigationContext))
+		{
+			return;
+		}
+
+		using CancellationTokenSource cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+		cts.CancelAfter(_options.EffectiveNavigationTimeout);
+
+		try
+		{
+			await _navigationProvider.NavigateToAsync(navigationContext!, cts.Token).ConfigureAwait(false);
+		}
+#pragma warning disable CA1031 // Do not catch general exception types
+		catch (Exception)
+		{
+			// Navigation timeout, cancellation or provider failure - not critical
+		}
+#pragma warning restore CA1031 // Do not catch general exception types
 	}
 
 	/// <inheritdoc />
