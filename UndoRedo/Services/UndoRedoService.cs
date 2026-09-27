@@ -255,6 +255,11 @@ public sealed class UndoRedoService(
 	}
 
 	/// <summary>
+	/// The longest navigation timeout <see cref="CancellationTokenSource.CancelAfter(TimeSpan)"/> accepts on every target framework.
+	/// </summary>
+	private static readonly TimeSpan MaxNavigationTimeout = TimeSpan.FromMilliseconds(int.MaxValue);
+
+	/// <summary>
 	/// Navigates to where a change was made, after the undo or redo has already been applied.
 	/// Navigation is best effort: any failure is swallowed, because an exception here would tell the
 	/// caller the undo or redo did not happen when it did, and a retry would then undo a second command.
@@ -266,11 +271,18 @@ public sealed class UndoRedoService(
 			return;
 		}
 
-		using CancellationTokenSource cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-		cts.CancelAfter(_options.EffectiveNavigationTimeout);
-
 		try
 		{
+			using CancellationTokenSource cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+
+			// CancelAfter throws for negative delays and for delays past its limit, which is
+			// int.MaxValue ms on older targets. Treat those as "no timeout" rather than failing here.
+			TimeSpan timeout = _options.EffectiveNavigationTimeout;
+			if (timeout > TimeSpan.Zero && timeout <= MaxNavigationTimeout)
+			{
+				cts.CancelAfter(timeout);
+			}
+
 			await _navigationProvider.NavigateToAsync(navigationContext!, cts.Token).ConfigureAwait(false);
 		}
 #pragma warning disable CA1031 // Do not catch general exception types
