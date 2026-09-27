@@ -545,6 +545,29 @@ public class SerializationTests
 		Assert.AreEqual(0, stack.SaveBoundaries[0].Position, "A failed load should keep the existing save boundary position");
 	}
 
+	[TestMethod]
+	public async Task UndoRedoService_SaveLoadState_ReconstructsCommandWithEmptyData()
+	{
+		// Arrange
+		UndoRedoService stack = CreateService();
+		stack.SetSerializer(new JsonUndoRedoSerializer());
+		stack.Execute(new EmptyDataSerializableCommand());
+
+		// Act
+		byte[] data = await stack.SaveStateAsync().ConfigureAwait(false);
+
+		UndoRedoService newStack = CreateService();
+		newStack.SetSerializer(new JsonUndoRedoSerializer());
+		bool success = await newStack.LoadStateAsync(data).ConfigureAwait(false);
+
+		// Assert: SerializeData() returning "" is a normal result for a command with no parameters,
+		// so the command is rebuilt rather than replaced with an un-undoable placeholder
+		Assert.IsTrue(success);
+		Assert.IsInstanceOfType<EmptyDataSerializableCommand>(newStack.Commands[0]);
+		Assert.IsTrue(await newStack.UndoAsync().ConfigureAwait(false));
+		Assert.AreEqual(-1, newStack.CurrentPosition);
+	}
+
 	private const string MalformedAssemblyName = "malformed assembly name";
 	private const string InvalidVersion = "invalid assembly version";
 	private const string NotACommand = "serializable type that is not a command";
@@ -649,6 +672,32 @@ public class SerializationTests
 		public void DeserializeData(string data) => Value = int.Parse(data, System.Globalization.CultureInfo.InvariantCulture);
 	}
 #pragma warning restore CA1812
+
+	private sealed class EmptyDataSerializableCommand : BaseCommand, ISerializableCommand
+	{
+		public EmptyDataSerializableCommand() : base(ChangeType.Modify, ["test"])
+		{
+		}
+
+		public override string Description => "Clear all";
+
+		public override void Execute()
+		{
+			// Test implementation
+		}
+
+		public override void Undo()
+		{
+			// Test implementation
+		}
+
+		public string SerializeData() => string.Empty;
+
+		public void DeserializeData(string data)
+		{
+			// Nothing to restore
+		}
+	}
 
 	private sealed class ConstructorOnlySerializableCommand(string value)
 		: BaseCommand(ChangeType.Modify, ["test"]), ISerializableCommand
