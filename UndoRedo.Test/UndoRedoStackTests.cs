@@ -753,6 +753,59 @@ public class UndoRedoStackTests
 	}
 
 	[TestMethod]
+	public async Task UndoToSaveBoundary_BoundaryHeldAcrossTrim_UndoesToSavedState()
+	{
+		// Arrange
+		UndoRedoService stack = new(new StackManager(), new SaveBoundaryManager(), new CommandMerger(), UndoRedoOptions.Create(maxStackSize: 3));
+		int value = 0;
+		SaveBoundary? heldBoundary = null;
+		stack.SaveBoundaryCreated += (_, e) => heldBoundary = e.SaveBoundary;
+
+		stack.Execute(new DelegateCommand("A", () => value++, () => value--));
+		stack.MarkAsSaved();
+		stack.Execute(new DelegateCommand("B", () => value++, () => value--));
+		stack.Execute(new DelegateCommand("C", () => value++, () => value--));
+		stack.Execute(new DelegateCommand("D", () => value++, () => value--)); // Trims A, moving the save point to -1
+		Assert.IsNotNull(heldBoundary);
+		Assert.AreEqual(3, stack.GetCommandsToUndo(heldBoundary).Count(), "The held boundary should resolve to the save point's current position");
+
+		// Act
+		bool result = await stack.UndoToSaveBoundaryAsync(heldBoundary, navigateToLastChange: false).ConfigureAwait(false);
+
+		// Assert
+		Assert.IsTrue(result, "UndoToSaveBoundary should resolve a boundary held across a trim");
+		Assert.AreEqual(1, value, "The value should be back at the saved state");
+		Assert.AreEqual(-1, stack.CurrentPosition);
+		Assert.IsFalse(stack.HasUnsavedChanges, "The stack should be at the save point");
+	}
+
+	[TestMethod]
+	public async Task UndoToSaveBoundary_BoundaryRemovedByBranching_ReturnsFalse()
+	{
+		// Arrange
+		UndoRedoService stack = CreateService();
+		int value = 0;
+		stack.Execute(new DelegateCommand("A", () => value++, () => value--));
+		stack.Execute(new DelegateCommand("B", () => value++, () => value--));
+		stack.MarkAsSaved();
+		SaveBoundary removedBoundary = stack.SaveBoundaries[0];
+		await stack.UndoAsync(navigateToChange: false).ConfigureAwait(false);
+		await stack.UndoAsync(navigateToChange: false).ConfigureAwait(false);
+		stack.Execute(new DelegateCommand("C", () => value++, () => value--)); // Branches, discarding the save point
+		stack.Execute(new DelegateCommand("D", () => value++, () => value--));
+		stack.Execute(new DelegateCommand("E", () => value++, () => value--));
+
+		// Act
+		bool result = await stack.UndoToSaveBoundaryAsync(removedBoundary, navigateToLastChange: false).ConfigureAwait(false);
+
+		// Assert
+		Assert.IsFalse(result, "UndoToSaveBoundary should reject a boundary that no longer exists");
+		Assert.AreEqual(3, value, "Nothing should have been undone");
+		Assert.AreEqual(2, stack.CurrentPosition);
+		Assert.IsEmpty(stack.GetCommandsToUndo(removedBoundary));
+	}
+
+	[TestMethod]
 	public async Task UndoToSaveBoundary_WhenAlreadyAtPosition_ReturnsFalse()
 	{
 		// Arrange

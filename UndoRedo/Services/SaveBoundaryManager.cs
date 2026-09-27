@@ -81,8 +81,9 @@ public sealed class SaveBoundaryManager : ISaveBoundaryManager
 			}
 			else
 			{
-				// Create a new boundary with adjusted position
-				_saveBoundaries[i] = new SaveBoundary(newPosition, boundary.Description);
+				// Create a new boundary with adjusted position that is still the same save point, so a
+				// boundary a caller already holds can be resolved to it
+				_saveBoundaries[i] = new SaveBoundary(boundary, newPosition);
 			}
 		}
 	}
