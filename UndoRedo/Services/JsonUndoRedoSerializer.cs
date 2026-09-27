@@ -138,7 +138,10 @@ public class JsonUndoRedoSerializer(JsonSerializerOptions? options = null) : IUn
 	{
 		// This is a simplified approach - real implementations would need a factory pattern
 		// or registry to recreate commands from serialized data
-		if (string.IsNullOrEmpty(serializableCommand.Data))
+		// A null Data is what ConvertToSerializableCommand writes for a command that is not an
+		// ISerializableCommand. An empty string is not that marker: it is a normal SerializeData()
+		// result for a command with no parameters, and such a command is reconstructed below.
+		if (serializableCommand.Data is null)
 		{
 			// Return a placeholder command that can't execute but preserves metadata
 			return new PlaceholderCommand(serializableCommand.Description, serializableCommand.NavigationContext, serializableCommand.Metadata);
@@ -171,7 +174,7 @@ public class JsonUndoRedoSerializer(JsonSerializerOptions? options = null) : IUn
 
 			try
 			{
-				instance?.DeserializeData(serializableCommand.Data!);
+				instance?.DeserializeData(serializableCommand.Data);
 			}
 #pragma warning disable CA1031 // Do not catch general exception types
 			catch (Exception ex) when (ex is not OperationCanceledException)
