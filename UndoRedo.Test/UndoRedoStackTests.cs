@@ -883,6 +883,46 @@ public class UndoRedoStackTests
 	}
 
 	[TestMethod]
+	public void GetCommandsToUndo_EnumeratedAfterBranching_ReflectsStateAtCall()
+	{
+		// Arrange
+		UndoRedoService stack = CreateService();
+		stack.MarkAsSaved();
+		stack.Execute(new DelegateCommand("A", () => { }, () => { }));
+		stack.Execute(new DelegateCommand("B", () => { }, () => { }));
+		SaveBoundary boundary = stack.SaveBoundaries[0];
+
+		// Act
+		IEnumerable<ICommand> commandsToUndo = stack.GetCommandsToUndo(boundary);
+		stack.Undo();
+		stack.Execute(new DelegateCommand("C", () => { }, () => { })); // Replaces B in the live stack
+
+		// Assert
+		string descriptions = string.Join(",", commandsToUndo.Select(c => c.Description));
+		Assert.AreEqual("A,B", descriptions, "The result should be a snapshot of the stack when it was requested");
+	}
+
+	[TestMethod]
+	public void GetChangeVisualizations_EnumeratedAfterExecute_ReflectsStateAtCall()
+	{
+		// Arrange
+		UndoRedoService stack = CreateService();
+		stack.Execute(new DelegateCommand("A", () => { }, () => { }));
+
+		// Act
+		IEnumerable<ChangeVisualization> visualizations = stack.GetChangeVisualizations();
+		stack.MarkAsSaved();
+		stack.Execute(new DelegateCommand("C", () => { }, () => { }));
+
+		// Assert
+		List<ChangeVisualization> snapshot = [.. visualizations];
+		Assert.HasCount(1, snapshot, "Commands executed after the call should not appear");
+		Assert.AreEqual("A", snapshot[0].Command.Description);
+		Assert.IsTrue(snapshot[0].IsExecuted);
+		Assert.IsFalse(snapshot[0].HasSaveBoundary, "A save boundary created after the call should not appear");
+	}
+
+	[TestMethod]
 	public async Task UndoToSaveBoundary_WhenAlreadyAtPosition_ReturnsFalse()
 	{
 		// Arrange
