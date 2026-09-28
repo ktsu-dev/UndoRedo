@@ -427,10 +427,19 @@ public sealed class UndoRedoService(
 				_stackManager.MoveNext();
 			}
 
-			// Recreate save boundaries by creating them at the stored positions
+			// Recreate save boundaries at the stored positions. The built-in manager keeps each one's
+			// original timestamp; ISaveBoundaryManager has no member for that, so a custom manager
+			// creates them afresh.
 			foreach (SaveBoundary boundary in state.SaveBoundaries)
 			{
-				_saveBoundaryManager.CreateSaveBoundary(boundary.Position, boundary.Description);
+				if (_saveBoundaryManager is SaveBoundaryManager builtInManager)
+				{
+					builtInManager.RestoreSaveBoundary(boundary);
+				}
+				else
+				{
+					_saveBoundaryManager.CreateSaveBoundary(boundary.Position, boundary.Description);
+				}
 			}
 
 			return true;
