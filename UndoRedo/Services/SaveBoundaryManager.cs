@@ -97,9 +97,10 @@ public sealed class SaveBoundaryManager : ISaveBoundaryManager
 		Ensure.NotNull(saveBoundary);
 		Ensure.NotNull(commands);
 
+		// Materialize so the result is a snapshot, not a view that changes with the live stack
 		return currentPosition <= saveBoundary.Position
 			? []
-			: commands.Skip(saveBoundary.Position + 1).Take(currentPosition - saveBoundary.Position);
+			: [.. commands.Skip(saveBoundary.Position + 1).Take(currentPosition - saveBoundary.Position)];
 	}
 
 	/// <inheritdoc />
