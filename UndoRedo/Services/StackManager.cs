@@ -111,7 +111,8 @@ public sealed class StackManager : IStackManager
 			return [];
 		}
 
-		int endIndex = Math.Min(startIndex + count, _commands.Count);
-		return _commands.GetRange(startIndex, endIndex - startIndex);
+		// Clamp against what remains rather than summing startIndex + count, which overflows for large counts
+		int available = _commands.Count - startIndex;
+		return _commands.GetRange(startIndex, Math.Min(count, available));
 	}
 }

@@ -240,6 +240,23 @@ public class UndoRedoStackTests
 		Assert.IsTrue(saveBoundaryCreatedFired, "SaveBoundaryCreated event should fire when marking as saved");
 	}
 
+	[TestMethod]
+	public void GetCommandsInRange_CountOfIntMaxValueFromNonZeroStart_ReturnsRemainingCommands()
+	{
+		StackManager stack = new();
+		DelegateCommand first = new("A", () => { }, () => { });
+		DelegateCommand second = new("B", () => { }, () => { });
+		DelegateCommand third = new("C", () => { }, () => { });
+		stack.AddCommand(first);
+		stack.AddCommand(second);
+		stack.AddCommand(third);
+
+		// startIndex + count overflowed to a negative length before #105
+		CollectionAssert.AreEqual(new[] { second, third }, stack.GetCommandsInRange(1, int.MaxValue).ToList());
+		CollectionAssert.AreEqual(new[] { third }, stack.GetCommandsInRange(2, int.MaxValue).ToList());
+		CollectionAssert.AreEqual(new[] { second }, stack.GetCommandsInRange(1, 1).ToList());
+	}
+
 	private sealed class MockNavigationProvider : INavigationProvider
 	{
 		public string? LastNavigatedContext { get; private set; }
