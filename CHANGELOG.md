@@ -1,3 +1,7 @@
+## v2.1.0
+
+No significant changes detected since v2.1.0.
+
 ## v2.1.0 (minor)
 
 Changes since v2.0.0:
@@ -112,15 +116,19 @@ Changes since v1.0.0:
 - docs: scope build badge to the default branch ([@matt-edmondson](https://github.com/matt-edmondson))
 - docs: correct README, DESCRIPTION and TAGS metadata ([@matt-edmondson](https://github.com/matt-edmondson))
 - Fix build errors from ktsu.Sdk analyzer updates (NU1506 duplicate PackageVersions, IDE0073 headers, IDE0055 line endings, KTSU0001/0002/0007) [patch] ([@matt-edmondson](https://github.com/matt-edmondson))
+- Sync .github\workflows\dotnet.yml ([@KtsuTools](https://github.com/KtsuTools))
 - Sync .runsettings ([@KtsuTools](https://github.com/KtsuTools))
 - Sync .editorconfig ([@KtsuTools](https://github.com/KtsuTools))
 - Sync .gitattributes ([@KtsuTools](https://github.com/KtsuTools))
 - Sync global.json ([@KtsuTools](https://github.com/KtsuTools))
+- Sync .github\workflows\dotnet.yml ([@KtsuTools](https://github.com/KtsuTools))
 - chore: trim central package versions for UndoRedo.Core ([@matt-edmondson](https://github.com/matt-edmondson))
+- Sync .github\workflows\dotnet.yml ([@KtsuTools](https://github.com/KtsuTools))
 - Remove legacy build scripts ([@matt-edmondson](https://github.com/matt-edmondson))
 - Remove obsolete .project.json file from .specstory directory ([@matt-edmondson](https://github.com/matt-edmondson))
 - Refactor namespaces and update documentation for consistency across the UndoRedo library ([@matt-edmondson](https://github.com/matt-edmondson))
 - Enhance test assertions with descriptive messages for clarity ([@matt-edmondson](https://github.com/matt-edmondson))
+- Remove .github\workflows\project.yml ([@matt-edmondson](https://github.com/matt-edmondson))
 - Migrate to dotnet 10 ([@matt-edmondson](https://github.com/matt-edmondson))
 - Refactor argument validation: Introduce Guard class for null checks and update package versions ([@matt-edmondson](https://github.com/matt-edmondson))
 - Update documentation files: removed outdated history file, added CLAUDE.md for project guidance ([@matt-edmondson](https://github.com/matt-edmondson))
@@ -136,6 +144,7 @@ Changes since v1.0.0:
 - Enhance JsonUndoRedoSerializer and UndoRedoService functionality ([@matt-edmondson](https://github.com/matt-edmondson))
 - Update package versions, remove unused projects, and enhance documentation ([@matt-edmondson](https://github.com/matt-edmondson))
 - Add serialization support for undo/redo stack state ([@matt-edmondson](https://github.com/matt-edmondson))
+- Update project configuration and CI/CD settings: modify .editorconfig for variable declaration preferences, enhance .gitignore for SpecStory files, adjust .runsettings for test parallelization, update package versions in Directory.Packages.props, and refine GitHub Actions workflow for better release management and SonarQube integration. ([@matt-edmondson](https://github.com/matt-edmondson))
 
 ## v1.1.4 (patch)
 
@@ -174,15 +183,19 @@ Changes since v1.0.0:
 - docs: scope build badge to the default branch ([@matt-edmondson](https://github.com/matt-edmondson))
 - docs: correct README, DESCRIPTION and TAGS metadata ([@matt-edmondson](https://github.com/matt-edmondson))
 - Fix build errors from ktsu.Sdk analyzer updates (NU1506 duplicate PackageVersions, IDE0073 headers, IDE0055 line endings, KTSU0001/0002/0007) [patch] ([@matt-edmondson](https://github.com/matt-edmondson))
+- Sync .github\workflows\dotnet.yml ([@KtsuTools](https://github.com/KtsuTools))
 - Sync .runsettings ([@KtsuTools](https://github.com/KtsuTools))
 - Sync .editorconfig ([@KtsuTools](https://github.com/KtsuTools))
 - Sync .gitattributes ([@KtsuTools](https://github.com/KtsuTools))
 - Sync global.json ([@KtsuTools](https://github.com/KtsuTools))
+- Sync .github\workflows\dotnet.yml ([@KtsuTools](https://github.com/KtsuTools))
 - chore: trim central package versions for UndoRedo.Core ([@matt-edmondson](https://github.com/matt-edmondson))
+- Sync .github\workflows\dotnet.yml ([@KtsuTools](https://github.com/KtsuTools))
 - Remove legacy build scripts ([@matt-edmondson](https://github.com/matt-edmondson))
 - Remove obsolete .project.json file from .specstory directory ([@matt-edmondson](https://github.com/matt-edmondson))
 - Refactor namespaces and update documentation for consistency across the UndoRedo library ([@matt-edmondson](https://github.com/matt-edmondson))
 - Enhance test assertions with descriptive messages for clarity ([@matt-edmondson](https://github.com/matt-edmondson))
+- Remove .github\workflows\project.yml ([@matt-edmondson](https://github.com/matt-edmondson))
 - Migrate to dotnet 10 ([@matt-edmondson](https://github.com/matt-edmondson))
 - Refactor argument validation: Introduce Guard class for null checks and update package versions ([@matt-edmondson](https://github.com/matt-edmondson))
 - Update documentation files: removed outdated history file, added CLAUDE.md for project guidance ([@matt-edmondson](https://github.com/matt-edmondson))
@@ -198,6 +211,7 @@ Changes since v1.0.0:
 - Enhance JsonUndoRedoSerializer and UndoRedoService functionality ([@matt-edmondson](https://github.com/matt-edmondson))
 - Update package versions, remove unused projects, and enhance documentation ([@matt-edmondson](https://github.com/matt-edmondson))
 - Add serialization support for undo/redo stack state ([@matt-edmondson](https://github.com/matt-edmondson))
+- Update project configuration and CI/CD settings: modify .editorconfig for variable declaration preferences, enhance .gitignore for SpecStory files, adjust .runsettings for test parallelization, update package versions in Directory.Packages.props, and refine GitHub Actions workflow for better release management and SonarQube integration. ([@matt-edmondson](https://github.com/matt-edmondson))
 
 ## v1.0.21 (patch)
 
@@ -248,10 +262,12 @@ Changes since v1.0.14:
 Changes since v1.0.13:
 
 - Fix build errors from ktsu.Sdk analyzer updates (NU1506 duplicate PackageVersions, IDE0073 headers, IDE0055 line endings, KTSU0001/0002/0007) [patch] ([@matt-edmondson](https://github.com/matt-edmondson))
+- Sync .github\workflows\dotnet.yml ([@KtsuTools](https://github.com/KtsuTools))
 - Sync .runsettings ([@KtsuTools](https://github.com/KtsuTools))
 - Sync .editorconfig ([@KtsuTools](https://github.com/KtsuTools))
 - Sync .gitattributes ([@KtsuTools](https://github.com/KtsuTools))
 - Sync global.json ([@KtsuTools](https://github.com/KtsuTools))
+- Sync .github\workflows\dotnet.yml ([@KtsuTools](https://github.com/KtsuTools))
 
 ## v1.0.13 (patch)
 
@@ -277,10 +293,13 @@ Changes since v1.0.10:
 Changes since v1.0.9:
 
 - chore: trim central package versions for UndoRedo.Core ([@matt-edmondson](https://github.com/matt-edmondson))
+- Sync .github\workflows\dotnet.yml ([@KtsuTools](https://github.com/KtsuTools))
 
 ## v1.0.10-pre.1 (prerelease)
 
-No significant changes detected since v1.0.10.
+Changes since v1.0.9:
+
+- Sync .github\workflows\dotnet.yml ([@KtsuTools](https://github.com/KtsuTools))
 
 ## v1.0.9 (patch)
 
@@ -294,7 +313,11 @@ Changes since v1.0.8:
 
 ## v1.0.9-pre.1 (prerelease)
 
-No significant changes detected since v1.0.9.
+Changes since v1.0.8:
+
+- Sync .github\workflows\dotnet.yml ([@ktsu[bot]](https://github.com/ktsu[bot]))
+- Sync .github\workflows\dotnet.yml ([@ktsu[bot]](https://github.com/ktsu[bot]))
+- Sync .github\workflows\dotnet.yml ([@ktsu[bot]](https://github.com/ktsu[bot]))
 
 ## v1.0.8 (patch)
 
@@ -355,7 +378,10 @@ Changes since v1.0.7-pre.1:
 
 ## v1.0.7-pre.1 (prerelease)
 
-No significant changes detected since v1.0.7.
+Changes since v1.0.6:
+
+- Merge remote-tracking branch 'refs/remotes/origin/main' ([@ktsu[bot]](https://github.com/ktsu[bot]))
+- Sync COPYRIGHT.md ([@ktsu[bot]](https://github.com/ktsu[bot]))
 
 ## v1.0.6 (patch)
 
@@ -375,15 +401,16 @@ Changes since v1.0.4:
 Changes since v1.0.3:
 
 - Remove .github\workflows\project.yml ([@matt-edmondson](https://github.com/matt-edmondson))
+
+## v1.0.4-pre.1 (prerelease)
+
+Changes since v1.0.3:
+
 - Merge remote-tracking branch 'refs/remotes/origin/main' ([@ktsu[bot]](https://github.com/ktsu[bot]))
 - Sync global.json ([@ktsu[bot]](https://github.com/ktsu[bot]))
 - Merge remote-tracking branch 'refs/remotes/origin/main' ([@ktsu[bot]](https://github.com/ktsu[bot]))
 - Sync .github\workflows\dotnet.yml ([@ktsu[bot]](https://github.com/ktsu[bot]))
 - Sync .gitignore ([@ktsu[bot]](https://github.com/ktsu[bot]))
-
-## v1.0.4-pre.1 (prerelease)
-
-No significant changes detected since v1.0.4.
 
 ## v1.0.3 (patch)
 
@@ -399,7 +426,9 @@ Changes since v1.0.2:
 
 ## v1.0.3-pre.1 (prerelease)
 
-No significant changes detected since v1.0.3.
+Changes since v1.0.2:
+
+- Bump the microsoft group with 2 updates ([@dependabot[bot]](https://github.com/dependabot[bot]))
 
 ## v1.0.2 (patch)
 
@@ -418,10 +447,13 @@ Changes since v1.0.1:
 Changes since v1.0.0:
 
 - Add serialization support for undo/redo stack state ([@matt-edmondson](https://github.com/matt-edmondson))
+- Update project configuration and CI/CD settings: modify .editorconfig for variable declaration preferences, enhance .gitignore for SpecStory files, adjust .runsettings for test parallelization, update package versions in Directory.Packages.props, and refine GitHub Actions workflow for better release management and SonarQube integration. ([@matt-edmondson](https://github.com/matt-edmondson))
 
 ## v1.0.1-pre.1 (prerelease)
 
-No significant changes detected since v1.0.1.
+Changes since v1.0.0:
+
+- Update project configuration and CI/CD settings: modify .editorconfig for variable declaration preferences, enhance .gitignore for SpecStory files, adjust .runsettings for test parallelization, update package versions in Directory.Packages.props, and refine GitHub Actions workflow for better release management and SonarQube integration. ([@matt-edmondson](https://github.com/matt-edmondson))
 
 ## v1.0.0 (major)
 
