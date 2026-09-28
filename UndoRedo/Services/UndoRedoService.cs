@@ -217,13 +217,30 @@ public sealed class UndoRedoService(
 	}
 
 	/// <inheritdoc />
-	public IEnumerable<ICommand> GetCommandsToUndo(SaveBoundary saveBoundary) =>
-		_saveBoundaryManager.GetCommandsToUndo(saveBoundary, _stackManager.CurrentPosition, _stackManager.Commands);
+	public IEnumerable<ICommand> GetCommandsToUndo(SaveBoundary saveBoundary)
+	{
+		Ensure.NotNull(saveBoundary);
+
+		SaveBoundary? liveBoundary = FindLiveSaveBoundary(saveBoundary);
+		return liveBoundary == null
+			? []
+			: _saveBoundaryManager.GetCommandsToUndo(liveBoundary, _stackManager.CurrentPosition, _stackManager.Commands);
+	}
 
 	/// <inheritdoc />
 	public async Task<bool> UndoToSaveBoundaryAsync(SaveBoundary saveBoundary, bool navigateToLastChange = true, CancellationToken cancellationToken = default)
 	{
 		Ensure.NotNull(saveBoundary);
+
+		// A boundary the caller has held since before the stack was trimmed carries a stale position,
+		// and one removed by branching or clearing no longer marks a reachable saved state
+		SaveBoundary? liveBoundary = FindLiveSaveBoundary(saveBoundary);
+		if (liveBoundary == null)
+		{
+			return false;
+		}
+
+		saveBoundary = liveBoundary;
 
 		if (_stackManager.CurrentPosition <= saveBoundary.Position)
 		{
@@ -253,6 +270,13 @@ public sealed class UndoRedoService(
 
 		return true;
 	}
+
+	/// <summary>
+	/// Resolves a save boundary, which may have been obtained before the stack was trimmed, to the live
+	/// boundary for the same save point, or null if that save point no longer exists
+	/// </summary>
+	private SaveBoundary? FindLiveSaveBoundary(SaveBoundary saveBoundary) =>
+		_saveBoundaryManager.SaveBoundaries.FirstOrDefault(boundary => boundary.IsSameSavePointAs(saveBoundary));
 
 	/// <summary>
 	/// The longest navigation timeout <see cref="CancellationTokenSource.CancelAfter(TimeSpan)"/> accepts on every target framework.

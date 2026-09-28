@@ -278,7 +278,7 @@ LoadNewDocument();
 ```csharp
 IEnumerable<ICommand> GetCommandsToUndo(SaveBoundary saveBoundary);
 ```
-Gets commands that would be undone to reach the specified save boundary.
+Gets commands that would be undone to reach the specified save boundary. Returns nothing for a boundary whose save point no longer exists.
 
 **Parameters:**
 - `saveBoundary`: The target save boundary
@@ -292,7 +292,7 @@ Gets commands that would be undone to reach the specified save boundary.
 ```csharp
 Task<bool> UndoToSaveBoundaryAsync(SaveBoundary saveBoundary, bool navigateToLastChange = true, CancellationToken cancellationToken = default);
 ```
-Undoes commands until reaching the specified save boundary.
+Undoes commands until reaching the specified save boundary. A boundary obtained earlier, for example from `SaveBoundaryCreated`, still resolves to its save point after `MaxStackSize` trims the stack. A boundary whose save point no longer exists, because a new branch or `Clear()` removed it, is rejected and nothing is undone.
 
 **Parameters:**
 - `saveBoundary`: The target save boundary
