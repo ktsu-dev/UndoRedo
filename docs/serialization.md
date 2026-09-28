@@ -134,7 +134,7 @@ public class BinaryUndoRedoSerializer : IUndoRedoSerializer
         foreach (var boundary in saveBoundaries)
         {
             writer.Write(boundary.Position);
-            writer.Write(boundary.Timestamp.ToBinary());
+            writer.Write(boundary.Timestamp.UtcTicks);
             writer.Write(boundary.Description ?? string.Empty);
         }
         
@@ -173,9 +173,9 @@ public class BinaryUndoRedoSerializer : IUndoRedoSerializer
         for (int i = 0; i < boundaryCount; i++)
         {
             int position = reader.ReadInt32();
-            DateTime boundaryTime = DateTime.FromBinary(reader.ReadInt64());
+            DateTimeOffset boundaryTime = new(reader.ReadInt64(), TimeSpan.Zero);
             string description = reader.ReadString();
-            boundaries.Add(new SaveBoundary(position, boundaryTime, description));
+            boundaries.Add(new SaveBoundary(position, description, boundaryTime));
         }
         
         return new UndoRedoStackState(commands, currentPosition, boundaries, version, timestamp);

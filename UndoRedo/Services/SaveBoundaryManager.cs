@@ -40,6 +40,15 @@ public sealed class SaveBoundaryManager : ISaveBoundaryManager
 		return saveBoundary;
 	}
 
+	/// <summary>
+	/// Adds a save boundary recreated from saved state, keeping the time it was originally created
+	/// </summary>
+	internal void RestoreSaveBoundary(SaveBoundary saveBoundary)
+	{
+		_saveBoundaries.Add(new SaveBoundary(saveBoundary.Position, saveBoundary.Description, saveBoundary.Timestamp));
+		_initialStateIsClean = false;
+	}
+
 	/// <inheritdoc />
 	public int CleanupInvalidBoundaries(int maxValidPosition)
 	{

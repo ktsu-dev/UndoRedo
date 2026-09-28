@@ -2,6 +2,8 @@
 
 namespace ktsu.UndoRedo;
 
+using System.Text.Json.Serialization;
+
 /// <summary>
 /// Represents a save boundary in the undo/redo stack
 /// </summary>
@@ -9,6 +11,25 @@ namespace ktsu.UndoRedo;
 /// <param name="description">Optional description</param>
 public sealed class SaveBoundary(int position, string? description = null)
 {
+	/// <summary>
+	/// Recreates a save boundary that was created earlier, keeping when it was created
+	/// </summary>
+	/// <param name="position">The position in the stack</param>
+	/// <param name="description">Optional description</param>
+	/// <param name="timestamp">
+	/// When the save boundary was created, or <see langword="default"/> to use the current time, which is
+	/// also what saved data without a timestamp deserializes to
+	/// </param>
+	[JsonConstructor]
+	public SaveBoundary(int position, string? description, DateTimeOffset timestamp)
+		: this(position, description)
+	{
+		if (timestamp != default)
+		{
+			Timestamp = timestamp;
+		}
+	}
+
 	/// <summary>
 	/// Creates a copy of <paramref name="original"/> at a new position that is still the same save point,
 	/// so a caller holding the original can have it resolved to where the save point is now

@@ -857,6 +857,24 @@ public class UndoRedoStackTests
 	}
 
 	[TestMethod]
+	public void SaveBoundary_StackTrimmed_KeepsTimestamp()
+	{
+		// Arrange
+		UndoRedoService stack = new(new StackManager(), new SaveBoundaryManager(), new CommandMerger(), UndoRedoOptions.Create(maxStackSize: 2));
+		stack.Execute(new DelegateCommand("A", () => { }, () => { }));
+		stack.Execute(new DelegateCommand("B", () => { }, () => { }));
+		stack.MarkAsSaved();
+		DateTimeOffset savedAt = stack.SaveBoundaries[0].Timestamp;
+
+		// Act
+		stack.Execute(new DelegateCommand("C", () => { }, () => { })); // Trims A, shifting the save point down
+
+		// Assert
+		Assert.AreEqual(0, stack.SaveBoundaries[0].Position);
+		Assert.AreEqual(savedAt, stack.SaveBoundaries[0].Timestamp, "Trimming must not restamp the save point");
+	}
+
+	[TestMethod]
 	public async Task UndoToSaveBoundary_BoundaryRemovedByBranching_ReturnsFalse()
 	{
 		// Arrange

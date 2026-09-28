@@ -689,15 +689,20 @@ public record ChangeMetadata(
 Represents a save point in the command history.
 
 ```csharp
-public record SaveBoundary(
-    int Position,
-    DateTime Timestamp,
-    string? Description = null);
+public sealed class SaveBoundary(int position, string? description = null)
+{
+    // Recreates an earlier save boundary, keeping when it was created
+    public SaveBoundary(int position, string? description, DateTimeOffset timestamp);
+
+    public int Position { get; }
+    public DateTimeOffset Timestamp { get; }
+    public string? Description { get; }
+}
 ```
 
 **Properties:**
 - `Position`: Position in the command stack
-- `Timestamp`: When the save boundary was created
+- `Timestamp`: When the save boundary was created. It is kept through a save and load, `RestoreFromState` with the built-in `SaveBoundaryManager`, and stack trimming
 - `Description`: Optional description
 
 ### ChangeVisualization

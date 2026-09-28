@@ -568,6 +568,94 @@ public class SerializationTests
 		Assert.AreEqual(-1, newStack.CurrentPosition);
 	}
 
+	private static readonly DateTimeOffset SavedAt = new(2020, 1, 2, 3, 4, 5, TimeSpan.FromHours(10));
+
+	[TestMethod]
+	public async Task JsonSerializer_SerializeDeserialize_PreservesSaveBoundaryTimestamp()
+	{
+		// Arrange
+		JsonUndoRedoSerializer serializer = new();
+		byte[] data = await serializer.SerializeAsync(
+			[new TestSerializableCommand("X")],
+			0,
+			[new SaveBoundary(0, "Saved", SavedAt)]).ConfigureAwait(false);
+
+		// Act
+		UndoRedoStackState state = await serializer.DeserializeAsync(data).ConfigureAwait(false);
+
+		// Assert
+		Assert.AreEqual(SavedAt, state.SaveBoundaries[0].Timestamp, "The timestamp must be when the save was made, not when it was loaded");
+	}
+
+	[TestMethod]
+	public async Task UndoRedoService_SaveLoadState_PreservesSaveBoundaryTimestamp()
+	{
+		// Arrange
+		UndoRedoService stack = CreateService();
+		stack.SetSerializer(new JsonUndoRedoSerializer());
+		stack.Execute(new TestSerializableCommand("X"));
+		stack.MarkAsSaved("Saved");
+		DateTimeOffset savedAt = stack.SaveBoundaries[0].Timestamp;
+		byte[] data = await stack.SaveStateAsync().ConfigureAwait(false);
+
+		// Rewrite the saved timestamp to a fixed past time, so a load that restamps it cannot match by chance
+		System.Text.Json.Nodes.JsonNode root = System.Text.Json.Nodes.JsonNode.Parse(data)!;
+		System.Text.Json.Nodes.JsonObject boundary = root["saveBoundaries"]![0]!.AsObject();
+		Assert.AreEqual(savedAt, boundary["timestamp"]!.GetValue<DateTimeOffset>(), "The save boundary timestamp should be written");
+		boundary["timestamp"] = SavedAt;
+		data = System.Text.Encoding.UTF8.GetBytes(root.ToJsonString());
+
+		UndoRedoService reloaded = CreateService();
+		reloaded.SetSerializer(new JsonUndoRedoSerializer());
+
+		// Act
+		bool success = await reloaded.LoadStateAsync(data).ConfigureAwait(false);
+
+		// Assert
+		Assert.IsTrue(success);
+		Assert.AreEqual(SavedAt, reloaded.SaveBoundaries[0].Timestamp);
+		Assert.IsFalse(reloaded.HasUnsavedChanges, "The restored boundary should still mark the saved position");
+	}
+
+	[TestMethod]
+	public async Task JsonSerializer_DeserializeSaveBoundaryWithoutTimestamp_UsesLoadTime()
+	{
+		// Arrange: data written before save boundary timestamps were read back may not carry one
+		JsonUndoRedoSerializer serializer = new();
+		byte[] data = System.Text.Encoding.UTF8.GetBytes(
+			"""{"commands":[],"currentPosition":-1,"saveBoundaries":[{"position":-1,"description":"d"}],"formatVersion":"json-v1.0"}""");
+		DateTimeOffset before = DateTimeOffset.Now;
+
+		// Act
+		UndoRedoStackState state = await serializer.DeserializeAsync(data).ConfigureAwait(false);
+
+		// Assert
+		Assert.AreEqual("d", state.SaveBoundaries[0].Description);
+		Assert.IsGreaterThanOrEqualTo(before, state.SaveBoundaries[0].Timestamp);
+	}
+
+	[TestMethod]
+	public void UndoRedoService_RestoreFromState_PreservesSaveBoundaryTimestamp()
+	{
+		// Arrange
+		UndoRedoStackState state = new(
+			[new TestSerializableCommand("X")],
+			0,
+			[new SaveBoundary(0, "Saved", SavedAt)],
+			"1.0",
+			DateTime.UtcNow);
+		UndoRedoService stack = CreateService();
+
+		// Act
+		bool success = stack.RestoreFromState(state);
+
+		// Assert
+		Assert.IsTrue(success);
+		Assert.AreEqual(SavedAt, stack.SaveBoundaries[0].Timestamp);
+		Assert.AreEqual("Saved", stack.SaveBoundaries[0].Description);
+		Assert.IsFalse(stack.HasUnsavedChanges);
+	}
+
 	private const string MalformedAssemblyName = "malformed assembly name";
 	private const string InvalidVersion = "invalid assembly version";
 	private const string NotACommand = "serializable type that is not a command";
