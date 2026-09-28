@@ -572,6 +572,8 @@ public class SerializationTests
 	private const string InvalidVersion = "invalid assembly version";
 	private const string NotACommand = "serializable type that is not a command";
 	private const string DataParseFailure = "command data its parser rejects";
+	private const string ThrowingConstructor = "command whose constructor throws";
+	private const string OpenGeneric = "open generic command type";
 
 	private static async Task<byte[]> SerializeWithCommandTypeAsync(string caseName)
 	{
@@ -581,6 +583,8 @@ public class SerializationTests
 			InvalidVersion => "Foo, Bar, Version=abc",
 			NotACommand => typeof(SerializableNonCommand).AssemblyQualifiedName!,
 			DataParseFailure => typeof(IntParsingSerializableCommand).AssemblyQualifiedName!,
+			ThrowingConstructor => typeof(ThrowingConstructorSerializableCommand).AssemblyQualifiedName!,
+			OpenGeneric => typeof(GenericSerializableCommand<>).AssemblyQualifiedName!,
 			_ => throw new ArgumentOutOfRangeException(nameof(caseName)),
 		};
 
@@ -600,6 +604,8 @@ public class SerializationTests
 	[DataRow(InvalidVersion)]
 	[DataRow(NotACommand)]
 	[DataRow(DataParseFailure)]
+	[DataRow(ThrowingConstructor)]
+	[DataRow(OpenGeneric)]
 	public async Task JsonSerializer_DeserializeUnloadableCommand_ThrowsInvalidOperationException(string caseName)
 	{
 		// Arrange
@@ -617,6 +623,8 @@ public class SerializationTests
 	[DataRow(InvalidVersion)]
 	[DataRow(NotACommand)]
 	[DataRow(DataParseFailure)]
+	[DataRow(ThrowingConstructor)]
+	[DataRow(OpenGeneric)]
 	public async Task UndoRedoService_LoadStateUnloadableCommand_ReturnsFalseAndKeepsHistory(string caseName)
 	{
 		// Arrange
@@ -670,6 +678,59 @@ public class SerializationTests
 		public string SerializeData() => Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
 
 		public void DeserializeData(string data) => Value = int.Parse(data, System.Globalization.CultureInfo.InvariantCulture);
+	}
+#pragma warning restore CA1812
+
+#pragma warning disable CA1812 // Instantiated by reflection during deserialization
+	private sealed class ThrowingConstructorSerializableCommand : BaseCommand, ISerializableCommand
+	{
+		public ThrowingConstructorSerializableCommand() : base(ChangeType.Modify, ["test"]) =>
+			throw new InvalidDataException("Needs context the loader cannot supply");
+
+		public override string Description => "Throwing constructor";
+
+		public override void Execute()
+		{
+			// Test implementation
+		}
+
+		public override void Undo()
+		{
+			// Test implementation
+		}
+
+		public string SerializeData() => string.Empty;
+
+		public void DeserializeData(string data)
+		{
+			// Nothing to restore
+		}
+	}
+
+	private sealed class GenericSerializableCommand<T> : BaseCommand, ISerializableCommand
+	{
+		public GenericSerializableCommand() : base(ChangeType.Modify, ["test"])
+		{
+		}
+
+		public override string Description => $"Generic command of {typeof(T).Name}";
+
+		public override void Execute()
+		{
+			// Test implementation
+		}
+
+		public override void Undo()
+		{
+			// Test implementation
+		}
+
+		public string SerializeData() => string.Empty;
+
+		public void DeserializeData(string data)
+		{
+			// Nothing to restore
+		}
 	}
 #pragma warning restore CA1812
 

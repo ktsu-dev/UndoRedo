@@ -171,6 +171,17 @@ public class JsonUndoRedoSerializer(JsonSerializerOptions? options = null) : IUn
 					$"Cannot reconstruct command type '{commandType.FullName}': {nameof(ISerializableCommand)} implementations must have a public parameterless constructor for DeserializeData to populate.",
 					ex);
 			}
+#pragma warning disable CA1031 // Do not catch general exception types
+			catch (Exception ex) when (ex is not OperationCanceledException)
+#pragma warning restore CA1031 // Do not catch general exception types
+			{
+				// The constructor itself can throw (surfacing as TargetInvocationException or
+				// TypeInitializationException), and an open generic type cannot be constructed at all
+				// (ArgumentException). Report these through the deserialization contract as well.
+				throw new InvalidOperationException(
+					$"Cannot reconstruct command type '{commandType.FullName}': its public parameterless constructor could not create an instance.",
+					ex);
+			}
 
 			try
 			{
