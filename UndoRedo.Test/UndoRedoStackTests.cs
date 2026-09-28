@@ -1179,6 +1179,35 @@ public class UndoRedoStackTests
 		}
 	}
 
+	public static IEnumerable<object[]> NavigationTimeoutsOutsideCancelAfterRange =>
+	[
+		[TimeSpan.MaxValue],
+		[TimeSpan.FromDays(60)],
+		[TimeSpan.FromSeconds(-5)],
+		[TimeSpan.MinValue],
+	];
+
+	[TestMethod]
+	[DynamicData(nameof(NavigationTimeoutsOutsideCancelAfterRange))]
+	public async Task UndoRedoAsync_NavigationTimeoutOutsideCancelAfterRange_AppliesAndNavigatesWithoutThrowing(TimeSpan timeout)
+	{
+		// Arrange
+		UndoRedoService stack = new(new StackManager(), new SaveBoundaryManager(), new CommandMerger(),
+			new UndoRedoOptions(DefaultNavigationTimeout: timeout));
+		MockNavigationProvider navigationProvider = new();
+		stack.SetNavigationProvider(navigationProvider);
+		int value = 0;
+		stack.Execute(new DelegateCommand("Increment", () => value++, () => value--, navigationContext: "editor"));
+
+		// Act & Assert: CancelAfter rejects these values, which surfaced after the change was applied
+		Assert.IsTrue(await stack.UndoAsync().ConfigureAwait(false));
+		Assert.AreEqual(0, value);
+		Assert.AreEqual("editor", navigationProvider.LastNavigatedContext, "Navigation should run with no timeout");
+
+		Assert.IsTrue(await stack.RedoAsync().ConfigureAwait(false));
+		Assert.AreEqual(1, value);
+	}
+
 	private sealed class ThrowingNavigationProvider : INavigationProvider
 	{
 		public Task<bool> NavigateToAsync(string context, CancellationToken cancellationToken = default) =>
