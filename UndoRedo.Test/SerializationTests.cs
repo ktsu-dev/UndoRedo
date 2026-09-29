@@ -18,7 +18,7 @@ public class SerializationTests
 		JsonUndoRedoSerializer serializer = new();
 
 		// Act
-		byte[] data = await serializer.SerializeAsync([], 0, []).ConfigureAwait(false);
+		byte[] data = await serializer.SerializeAsync([], 0, [], true).ConfigureAwait(false);
 
 		// Assert
 		Assert.IsNotNull(data);
@@ -50,7 +50,7 @@ public class SerializationTests
 		];
 
 		// Act
-		byte[] data = await serializer.SerializeAsync(commands, 1, boundaries).ConfigureAwait(false);
+		byte[] data = await serializer.SerializeAsync(commands, 1, boundaries, false).ConfigureAwait(false);
 		UndoRedoStackState state = await serializer.DeserializeAsync(data).ConfigureAwait(false);
 
 		// Assert
@@ -301,7 +301,7 @@ public class SerializationTests
 		];
 
 		// Act
-		byte[] data = await serializer.SerializeAsync(commands, 1, []).ConfigureAwait(false);
+		byte[] data = await serializer.SerializeAsync(commands, 1, [], true).ConfigureAwait(false);
 		UndoRedoStackState state = await serializer.DeserializeAsync(data).ConfigureAwait(false);
 
 		// Assert
@@ -381,7 +381,7 @@ public class SerializationTests
 		// Arrange
 		JsonUndoRedoSerializer serializer = new();
 		ConstructorOnlySerializableCommand command = new("saved");
-		byte[] data = await serializer.SerializeAsync([command], 0, []).ConfigureAwait(false);
+		byte[] data = await serializer.SerializeAsync([command], 0, [], true).ConfigureAwait(false);
 
 		// Act & Assert: the failure is reported as part of the deserialization contract, not as the
 		// raw reflection error
@@ -528,7 +528,8 @@ public class SerializationTests
 		byte[] data = await serializer.SerializeAsync(
 			[new TestSerializableCommand("X")],
 			0,
-			[new SaveBoundary(-7), new SaveBoundary(42)]).ConfigureAwait(false);
+			[new SaveBoundary(-7), new SaveBoundary(42)],
+			false).ConfigureAwait(false);
 
 		UndoRedoService stack = CreateService();
 		stack.SetSerializer(new JsonUndoRedoSerializer());
@@ -568,6 +569,138 @@ public class SerializationTests
 		Assert.AreEqual(-1, newStack.CurrentPosition);
 	}
 
+	/// <summary>
+	/// Builds the #83 repro: with room for two commands, three are executed, so the first is trimmed,
+	/// then both remaining are undone. Position -1 now holds the first command's never-saved result.
+	/// </summary>
+	private static UndoRedoService CreateDirtyAtStartAfterTrimming()
+	{
+		UndoRedoService stack = new(new StackManager(), new SaveBoundaryManager(), new CommandMerger(), UndoRedoOptions.Create(maxStackSize: 2));
+		stack.SetSerializer(new JsonUndoRedoSerializer());
+		stack.Execute(new TestSerializableCommand("1"));
+		stack.Execute(new TestSerializableCommand("2"));
+		stack.Execute(new TestSerializableCommand("3"));
+		stack.Undo();
+		stack.Undo();
+
+		Assert.AreEqual(-1, stack.CurrentPosition);
+		Assert.IsEmpty(stack.SaveBoundaries);
+		Assert.IsTrue(stack.HasUnsavedChanges, "The trimmed command's result at -1 was never saved");
+		return stack;
+	}
+
+	[TestMethod]
+	public void UndoRedoService_RestoreFromState_KeepsUnsavedChangesAtStartAfterTrimming()
+	{
+		// Arrange
+		UndoRedoService stack = CreateDirtyAtStartAfterTrimming();
+		UndoRedoStackState state = stack.GetCurrentState();
+
+		// Act
+		UndoRedoService restored = CreateService();
+		bool success = restored.RestoreFromState(state);
+
+		// Assert
+		Assert.IsTrue(success);
+		Assert.IsFalse(state.InitialStateIsClean);
+		Assert.AreEqual(-1, restored.CurrentPosition);
+		Assert.IsTrue(restored.HasUnsavedChanges, "Restoring must not make the dirty state at -1 look saved");
+	}
+
+	[TestMethod]
+	public void UndoRedoService_RestoreFromOwnState_KeepsUnsavedChangesAtStartAfterTrimming()
+	{
+		// Arrange
+		UndoRedoService stack = CreateDirtyAtStartAfterTrimming();
+
+		// Act
+		bool success = stack.RestoreFromState(stack.GetCurrentState());
+
+		// Assert
+		Assert.IsTrue(success);
+		Assert.IsTrue(stack.HasUnsavedChanges, "Restoring its own state must not make the dirty state at -1 look saved");
+	}
+
+	[TestMethod]
+	public async Task UndoRedoService_SaveLoadState_KeepsUnsavedChangesAtStartAfterTrimming()
+	{
+		// Arrange
+		UndoRedoService stack = CreateDirtyAtStartAfterTrimming();
+		byte[] data = await stack.SaveStateAsync().ConfigureAwait(false);
+
+		UndoRedoService reloaded = CreateService();
+		reloaded.SetSerializer(new JsonUndoRedoSerializer());
+
+		// Act
+		bool success = await reloaded.LoadStateAsync(data).ConfigureAwait(false);
+
+		// Assert
+		Assert.IsTrue(success);
+		Assert.AreEqual(-1, reloaded.CurrentPosition);
+		Assert.IsTrue(reloaded.HasUnsavedChanges, "A JSON round trip must not make the dirty state at -1 look saved");
+	}
+
+	[TestMethod]
+	public async Task UndoRedoService_SaveLoadState_KeepsCleanInitialState()
+	{
+		// Arrange: nothing trimmed or saved, so -1 is still the clean initial state
+		UndoRedoService stack = CreateService();
+		stack.SetSerializer(new JsonUndoRedoSerializer());
+		stack.Execute(new TestSerializableCommand("1"));
+		await stack.UndoAsync().ConfigureAwait(false);
+		Assert.IsFalse(stack.HasUnsavedChanges);
+		byte[] data = await stack.SaveStateAsync().ConfigureAwait(false);
+
+		UndoRedoService reloaded = CreateService();
+		reloaded.SetSerializer(new JsonUndoRedoSerializer());
+
+		// Act
+		bool success = await reloaded.LoadStateAsync(data).ConfigureAwait(false);
+
+		// Assert
+		Assert.IsTrue(success);
+		Assert.IsFalse(reloaded.HasUnsavedChanges);
+	}
+
+	[TestMethod]
+	public async Task UndoRedoService_LoadStateSavedBeforeInitialStateFlag_TreatsInitialStateAsClean()
+	{
+		// Arrange: data written before the flag existed has no initialStateIsClean field
+		UndoRedoService stack = CreateDirtyAtStartAfterTrimming();
+		byte[] data = await stack.SaveStateAsync().ConfigureAwait(false);
+		System.Text.Json.Nodes.JsonObject root = System.Text.Json.Nodes.JsonNode.Parse(data)!.AsObject();
+		Assert.IsTrue(root.Remove("initialStateIsClean"), "The flag should be written as initialStateIsClean");
+		data = System.Text.Encoding.UTF8.GetBytes(root.ToJsonString());
+
+		UndoRedoService reloaded = CreateService();
+		reloaded.SetSerializer(new JsonUndoRedoSerializer());
+
+		// Act
+		bool success = await reloaded.LoadStateAsync(data).ConfigureAwait(false);
+
+		// Assert: old data still loads, with the meaning it had when it was written
+		Assert.IsTrue(success);
+		Assert.AreEqual(-1, reloaded.CurrentPosition);
+		Assert.IsFalse(reloaded.HasUnsavedChanges);
+	}
+
+	[TestMethod]
+	public async Task JsonSerializer_SerializeDeserialize_PreservesInitialStateIsClean()
+	{
+		// Arrange
+		JsonUndoRedoSerializer serializer = new();
+
+		// Act
+		UndoRedoStackState dirty = await serializer.DeserializeAsync(
+			await serializer.SerializeAsync([new TestSerializableCommand("X")], -1, [], false).ConfigureAwait(false)).ConfigureAwait(false);
+		UndoRedoStackState clean = await serializer.DeserializeAsync(
+			await serializer.SerializeAsync([new TestSerializableCommand("X")], -1, [], true).ConfigureAwait(false)).ConfigureAwait(false);
+
+		// Assert
+		Assert.IsFalse(dirty.InitialStateIsClean);
+		Assert.IsTrue(clean.InitialStateIsClean);
+	}
+
 	private static readonly DateTimeOffset SavedAt = new(2020, 1, 2, 3, 4, 5, TimeSpan.FromHours(10));
 
 	[TestMethod]
@@ -578,7 +711,8 @@ public class SerializationTests
 		byte[] data = await serializer.SerializeAsync(
 			[new TestSerializableCommand("X")],
 			0,
-			[new SaveBoundary(0, "Saved", SavedAt)]).ConfigureAwait(false);
+			[new SaveBoundary(0, "Saved", SavedAt)],
+			false).ConfigureAwait(false);
 
 		// Act
 		UndoRedoStackState state = await serializer.DeserializeAsync(data).ConfigureAwait(false);
@@ -677,7 +811,7 @@ public class SerializationTests
 		};
 
 		JsonUndoRedoSerializer serializer = new();
-		byte[] data = await serializer.SerializeAsync([new TestSerializableCommand("saved")], 0, []).ConfigureAwait(false);
+		byte[] data = await serializer.SerializeAsync([new TestSerializableCommand("saved")], 0, [], true).ConfigureAwait(false);
 		System.Text.Json.Nodes.JsonNode root = System.Text.Json.Nodes.JsonNode.Parse(data)!;
 		System.Text.Json.Nodes.JsonObject command = root["commands"]![0]!.AsObject();
 		string typeKey = command.Single(p => p.Key.Equals("type", StringComparison.OrdinalIgnoreCase)).Key;

@@ -25,6 +25,17 @@ public record UndoRedoStackState(
 	private const int EmptyPosition = -1;
 
 	/// <summary>
+	/// Gets whether position -1 holds the clean initial state, which needs no save boundary to count
+	/// as saved
+	/// </summary>
+	/// <remarks>
+	/// Defaults to <see langword="true"/>, which is what state saved before this was recorded meant.
+	/// It is <see langword="false"/> once the stack has been saved, and once trimming the oldest
+	/// commands made -1 the state after them.
+	/// </remarks>
+	public bool InitialStateIsClean { get; init; } = true;
+
+	/// <summary>
 	/// Creates an empty stack state
 	/// </summary>
 	/// <param name="formatVersion">The format version</param>

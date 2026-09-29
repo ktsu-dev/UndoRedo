@@ -15,12 +15,18 @@ public interface IUndoRedoSerializer
 	/// <param name="commands">The commands in the stack</param>
 	/// <param name="currentPosition">The current position in the stack</param>
 	/// <param name="saveBoundaries">The save boundaries</param>
+	/// <param name="initialStateIsClean">
+	/// Whether position -1 holds the clean initial state, as <see cref="ISaveBoundaryManager.InitialStateIsClean"/>
+	/// reports it. It must round-trip into <see cref="UndoRedoStackState.InitialStateIsClean"/>, so a
+	/// reloaded stack whose oldest commands were trimmed still reports unsaved changes at -1.
+	/// </param>
 	/// <param name="cancellationToken">Cancellation token</param>
 	/// <returns>Serialized stack state</returns>
 	public Task<byte[]> SerializeAsync(
 		IReadOnlyList<ICommand> commands,
 		int currentPosition,
 		IReadOnlyList<SaveBoundary> saveBoundaries,
+		bool initialStateIsClean,
 		CancellationToken cancellationToken = default);
 
 	/// <summary>
