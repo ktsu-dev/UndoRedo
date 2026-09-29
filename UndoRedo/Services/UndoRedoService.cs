@@ -364,6 +364,7 @@ public sealed class UndoRedoService(
 			_stackManager.Commands,
 			_stackManager.CurrentPosition,
 			_saveBoundaryManager.SaveBoundaries,
+			_saveBoundaryManager.InitialStateIsClean,
 			cancellationToken).ConfigureAwait(false);
 	}
 
@@ -393,7 +394,10 @@ public sealed class UndoRedoService(
 		[.. _saveBoundaryManager.SaveBoundaries],
 		"1.0", // Format version
 		DateTime.UtcNow
-	);
+	)
+	{
+		InitialStateIsClean = _saveBoundaryManager.InitialStateIsClean,
+	};
 
 	/// <inheritdoc />
 	public bool RestoreFromState(UndoRedoStackState state)
@@ -426,6 +430,9 @@ public sealed class UndoRedoService(
 			{
 				_stackManager.MoveNext();
 			}
+
+			// Clear() reset this to true. Restore it before the boundaries, which set it to false.
+			_saveBoundaryManager.SetInitialStateClean(state.InitialStateIsClean);
 
 			// Recreate save boundaries at the stored positions. The built-in manager keeps each one's
 			// original timestamp; ISaveBoundaryManager has no member for that, so a custom manager

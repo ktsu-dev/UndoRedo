@@ -41,6 +41,7 @@ public class JsonUndoRedoSerializer(JsonSerializerOptions? options = null) : IUn
 		IReadOnlyList<ICommand> commands,
 		int currentPosition,
 		IReadOnlyList<SaveBoundary> saveBoundaries,
+		bool initialStateIsClean,
 		CancellationToken cancellationToken = default)
 	{
 		List<SerializableCommand> serializableCommands = [.. commands.Select(ConvertToSerializableCommand)];
@@ -49,6 +50,7 @@ public class JsonUndoRedoSerializer(JsonSerializerOptions? options = null) : IUn
 			Commands = serializableCommands,
 			CurrentPosition = currentPosition,
 			SaveBoundaries = [.. saveBoundaries],
+			InitialStateIsClean = initialStateIsClean,
 			FormatVersion = FormatVersion,
 			Timestamp = DateTime.UtcNow
 		};
@@ -80,7 +82,10 @@ public class JsonUndoRedoSerializer(JsonSerializerOptions? options = null) : IUn
 			serializableState.CurrentPosition,
 			serializableState.SaveBoundaries,
 			serializableState.FormatVersion,
-			serializableState.Timestamp);
+			serializableState.Timestamp)
+		{
+			InitialStateIsClean = serializableState.InitialStateIsClean,
+		};
 	}
 
 	/// <summary>
@@ -239,6 +244,9 @@ public class JsonUndoRedoSerializer(JsonSerializerOptions? options = null) : IUn
 		public List<SerializableCommand> Commands { get; set; } = [];
 		public int CurrentPosition { get; set; }
 		public List<SaveBoundary> SaveBoundaries { get; set; } = [];
+
+		// Data saved before this field existed has no value for it, and meant a clean initial state
+		public bool InitialStateIsClean { get; set; } = true;
 		public string FormatVersion { get; set; } = string.Empty;
 		public DateTime Timestamp { get; set; }
 	}

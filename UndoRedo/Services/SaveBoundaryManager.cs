@@ -11,18 +11,22 @@ public sealed class SaveBoundaryManager : ISaveBoundaryManager
 {
 	private readonly List<SaveBoundary> _saveBoundaries = [];
 
+	/// <inheritdoc />
+	public IReadOnlyList<SaveBoundary> SaveBoundaries => _saveBoundaries.AsReadOnly();
+
 	// Whether position -1 still holds the untouched initial state, which is clean without a boundary.
 	// It stops being true once anything is saved, since the saved state replaces it, and once trimming
 	// shifts later commands' results down to -1.
-	private bool _initialStateIsClean = true;
+	/// <inheritdoc />
+	public bool InitialStateIsClean { get; private set; } = true;
 
 	/// <inheritdoc />
-	public IReadOnlyList<SaveBoundary> SaveBoundaries => _saveBoundaries.AsReadOnly();
+	public void SetInitialStateClean(bool isClean) => InitialStateIsClean = isClean;
 
 	/// <inheritdoc />
 	public bool HasUnsavedChanges(int currentPosition)
 	{
-		if (currentPosition == -1 && _initialStateIsClean)
+		if (currentPosition == -1 && InitialStateIsClean)
 		{
 			return false;
 		}
@@ -36,7 +40,7 @@ public sealed class SaveBoundaryManager : ISaveBoundaryManager
 	{
 		SaveBoundary saveBoundary = new(position, description);
 		_saveBoundaries.Add(saveBoundary);
-		_initialStateIsClean = false;
+		InitialStateIsClean = false;
 		return saveBoundary;
 	}
 
@@ -46,7 +50,7 @@ public sealed class SaveBoundaryManager : ISaveBoundaryManager
 	internal void RestoreSaveBoundary(SaveBoundary saveBoundary)
 	{
 		_saveBoundaries.Add(new SaveBoundary(saveBoundary.Position, saveBoundary.Description, saveBoundary.Timestamp));
-		_initialStateIsClean = false;
+		InitialStateIsClean = false;
 	}
 
 	/// <inheritdoc />
@@ -75,7 +79,7 @@ public sealed class SaveBoundaryManager : ISaveBoundaryManager
 		if (adjustment < 0)
 		{
 			// Commands were trimmed from the bottom, so -1 is now the state after them, not the initial one
-			_initialStateIsClean = false;
+			InitialStateIsClean = false;
 		}
 
 		for (int i = _saveBoundaries.Count - 1; i >= 0; i--)
@@ -116,6 +120,6 @@ public sealed class SaveBoundaryManager : ISaveBoundaryManager
 	public void Clear()
 	{
 		_saveBoundaries.Clear();
-		_initialStateIsClean = true;
+		InitialStateIsClean = true;
 	}
 }

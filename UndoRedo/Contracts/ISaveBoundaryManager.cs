@@ -13,6 +13,28 @@ public interface ISaveBoundaryManager
 	public IReadOnlyList<SaveBoundary> SaveBoundaries { get; }
 
 	/// <summary>
+	/// Gets whether position -1 still holds the clean initial state, which needs no save boundary to
+	/// count as saved
+	/// </summary>
+	/// <remarks>
+	/// This becomes <see langword="false"/> once a save boundary is created, and once trimming the
+	/// oldest commands makes -1 the state after them. Persisted stack state carries it, so a reloaded
+	/// stack reports unsaved changes at -1 exactly as the original did.
+	/// </remarks>
+	public bool InitialStateIsClean { get; }
+
+	/// <summary>
+	/// Sets whether position -1 holds the clean initial state
+	/// </summary>
+	/// <remarks>
+	/// Used when restoring saved stack state, since <see cref="Clear"/> resets it to
+	/// <see langword="true"/>. Creating a save boundary afterwards still sets it to
+	/// <see langword="false"/>.
+	/// </remarks>
+	/// <param name="isClean">Whether position -1 holds the clean initial state</param>
+	public void SetInitialStateClean(bool isClean);
+
+	/// <summary>
 	/// Gets whether there are unsaved changes since the last save boundary
 	/// </summary>
 	/// <param name="currentPosition">Current position in the stack</param>

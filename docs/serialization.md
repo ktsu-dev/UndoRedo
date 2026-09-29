@@ -32,6 +32,7 @@ public interface IUndoRedoSerializer
         IReadOnlyList<ICommand> commands,
         int currentPosition,
         IReadOnlyList<SaveBoundary> saveBoundaries,
+        bool initialStateIsClean,
         CancellationToken cancellationToken = default);
         
     Task<UndoRedoStackState> DeserializeAsync(
@@ -50,8 +51,17 @@ public record UndoRedoStackState(
     int CurrentPosition,
     IReadOnlyList<SaveBoundary> SaveBoundaries,
     string FormatVersion,
-    DateTime Timestamp);
+    DateTime Timestamp)
+{
+    // Whether position -1 is the clean initial state. False once the stack has been saved, or once
+    // trimming the oldest commands made -1 the state after them. Defaults to true, so data saved
+    // before this was recorded still loads.
+    public bool InitialStateIsClean { get; init; } = true;
+}
 ```
+
+A serializer must round-trip `initialStateIsClean` into `UndoRedoStackState.InitialStateIsClean`.
+Otherwise a reloaded stack whose oldest commands were trimmed reports no unsaved changes at -1.
 
 ## Basic Usage
 
@@ -111,6 +121,7 @@ public class BinaryUndoRedoSerializer : IUndoRedoSerializer
         IReadOnlyList<ICommand> commands,
         int currentPosition,
         IReadOnlyList<SaveBoundary> saveBoundaries,
+        bool initialStateIsClean,
         CancellationToken cancellationToken = default)
     {
         using var stream = new MemoryStream();
@@ -445,9 +456,10 @@ public class CompressedJsonSerializer : IUndoRedoSerializer
         IReadOnlyList<ICommand> commands,
         int currentPosition,
         IReadOnlyList<SaveBoundary> saveBoundaries,
+        bool initialStateIsClean,
         CancellationToken cancellationToken = default)
     {
-        var jsonData = await _jsonSerializer.SerializeAsync(commands, currentPosition, saveBoundaries, cancellationToken);
+        var jsonData = await _jsonSerializer.SerializeAsync(commands, currentPosition, saveBoundaries, initialStateIsClean, cancellationToken);
         
         using var output = new MemoryStream();
         using var gzip = new GZipStream(output, CompressionLevel.Optimal);
