@@ -80,8 +80,13 @@ public static class ServiceCollectionExtensions
 	}
 
 	/// <summary>
-	/// Adds a scoped navigation provider to the service collection
+	/// Adds a transient navigation provider to the service collection
 	/// </summary>
+	/// <remarks>
+	/// Transient rather than scoped, so it can be injected into the transient service from
+	/// <see cref="AddUndoRedo(IServiceCollection, UndoRedoOptions?)"/> and the singleton from
+	/// <see cref="AddSingletonUndoRedo"/> without failing scope validation.
+	/// </remarks>
 	/// <typeparam name="TNavigationProvider">The navigation provider type</typeparam>
 	/// <param name="services">The service collection</param>
 	/// <returns>The service collection for chaining</returns>
@@ -90,7 +95,7 @@ public static class ServiceCollectionExtensions
 	{
 		Ensure.NotNull(services);
 
-		services.TryAddScoped<INavigationProvider, TNavigationProvider>();
+		services.TryAddTransient<INavigationProvider, TNavigationProvider>();
 		return services;
 	}
 
