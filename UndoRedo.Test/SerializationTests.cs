@@ -399,6 +399,7 @@ public class SerializationTests
 	[DataRow("""{"commands":[],"currentPosition":-1,"saveBoundaries":null,"formatVersion":"json-v1.0"}""", DisplayName = "null save boundaries")]
 	[DataRow("""{"commands":[],"currentPosition":-1,"saveBoundaries":[null],"formatVersion":"json-v1.0"}""", DisplayName = "null save boundary entry")]
 	[DataRow("""{"commands":[],"currentPosition":-1,"saveBoundaries":[],"formatVersion":null}""", DisplayName = "null format version")]
+	[DataRow("""{"commands":[{"type":"x","description":"d","metadata":{"changeType":"Modify","timestamp":"2026-01-01T00:00:00+00:00","size":1}}],"currentPosition":0,"saveBoundaries":[],"formatVersion":"json-v1.0"}""", DisplayName = "metadata without affected items")]
 	public async Task UndoRedoService_LoadStateMalformed_ReturnsFalseAndKeepsHistory(string json)
 	{
 		// Arrange: a stack with history the user would lose if a bad load cleared it
@@ -419,6 +420,45 @@ public class SerializationTests
 		Assert.AreEqual(0, stack.CurrentPosition, "A failed load should keep the existing position");
 		Assert.HasCount(1, stack.SaveBoundaries, "A failed load should keep the existing save boundaries");
 		Assert.AreEqual(1, value);
+	}
+
+	[TestMethod]
+	public async Task UndoRedoService_SaveLoadCyclesOfPlaceholder_KeepDescriptionStable()
+	{
+		// Arrange: a DelegateCommand cannot be rebuilt, so it loads as a placeholder
+		UndoRedoService stack = CreateService();
+		stack.SetSerializer(new JsonUndoRedoSerializer());
+		stack.Execute(new DelegateCommand("Type hello", () => { }, () => { }));
+
+		// Act & Assert: every cycle shows one prefix, rather than adding another
+		for (int cycle = 0; cycle < 3; cycle++)
+		{
+			bool success = await stack.LoadStateAsync(await stack.SaveStateAsync().ConfigureAwait(false)).ConfigureAwait(false);
+			Assert.IsTrue(success);
+			Assert.AreEqual("[Placeholder] Type hello", stack.Commands[0].Description, $"Cycle {cycle + 1}");
+		}
+	}
+
+	[TestMethod]
+	public async Task UndoRedoService_SaveAfterLoadingUnresolvableType_WritesOriginalTypeDescriptionAndData()
+	{
+		// Arrange: a command whose type is not loaded, for example because its plugin is missing
+		const string json = """{"commands":[{"type":"My.Plugin.SetTextCommand","description":"Set text","navigationContext":"line:3","data":"hello","metadata":{"changeType":"Modify","affectedItems":["doc"],"timestamp":"2026-01-01T00:00:00+00:00","size":4}}],"currentPosition":0,"saveBoundaries":[],"formatVersion":"json-v1.0","timestamp":"2026-01-01T00:00:00Z"}""";
+		UndoRedoService stack = CreateService();
+		stack.SetSerializer(new JsonUndoRedoSerializer());
+		Assert.IsTrue(await stack.LoadStateAsync(System.Text.Encoding.UTF8.GetBytes(json)).ConfigureAwait(false));
+
+		// Act
+		byte[] saved = await stack.SaveStateAsync().ConfigureAwait(false);
+
+		// Assert: the save writes back what was loaded, so the command can be rebuilt once the plugin is back
+		using JsonDocument document = JsonDocument.Parse(saved);
+		JsonElement command = document.RootElement.GetProperty("commands")[0];
+		Assert.AreEqual("My.Plugin.SetTextCommand", command.GetProperty("type").GetString());
+		Assert.AreEqual("Set text", command.GetProperty("description").GetString());
+		Assert.AreEqual("hello", command.GetProperty("data").GetString());
+		Assert.AreEqual("line:3", command.GetProperty("navigationContext").GetString());
+		Assert.AreEqual(4, command.GetProperty("metadata").GetProperty("size").GetInt32());
 	}
 
 	[TestMethod]

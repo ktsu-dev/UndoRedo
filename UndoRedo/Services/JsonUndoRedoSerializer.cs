@@ -122,11 +122,31 @@ public class JsonUndoRedoSerializer(JsonSerializerOptions? options = null) : IUn
 			{
 				throw new InvalidOperationException($"Command '{command.Description}' has no metadata");
 			}
+
+			if (command.Metadata.AffectedItems is null)
+			{
+				throw new InvalidOperationException($"Command '{command.Description}' has no affected items in its metadata");
+			}
 		}
 	}
 
 	private static SerializableCommand ConvertToSerializableCommand(ICommand command)
 	{
+		// A placeholder stands in for a command that could not be rebuilt, for example because its
+		// plugin assembly is not loaded yet. Write back what was loaded, so a later load can still
+		// rebuild it, and so the displayed "[Placeholder] " prefix is not saved into the description.
+		if (command is PlaceholderCommand placeholder)
+		{
+			return new SerializableCommand
+			{
+				Type = placeholder.OriginalType,
+				Description = placeholder.OriginalDescription,
+				NavigationContext = placeholder.NavigationContext,
+				Metadata = placeholder.Metadata,
+				Data = placeholder.OriginalData,
+			};
+		}
+
 		return new SerializableCommand
 		{
 			Type = command.GetType().AssemblyQualifiedName ?? command.GetType().FullName!,
@@ -149,7 +169,7 @@ public class JsonUndoRedoSerializer(JsonSerializerOptions? options = null) : IUn
 		if (serializableCommand.Data is null)
 		{
 			// Return a placeholder command that can't execute but preserves metadata
-			return new PlaceholderCommand(serializableCommand.Description, serializableCommand.NavigationContext, serializableCommand.Metadata);
+			return CreatePlaceholder(serializableCommand);
 		}
 
 		// For commands that implement ISerializableCommand, try to reconstruct them
@@ -215,8 +235,11 @@ public class JsonUndoRedoSerializer(JsonSerializerOptions? options = null) : IUn
 		}
 
 		// Fallback to placeholder
-		return new PlaceholderCommand(serializableCommand.Description, serializableCommand.NavigationContext, serializableCommand.Metadata);
+		return CreatePlaceholder(serializableCommand);
 	}
+
+	private static PlaceholderCommand CreatePlaceholder(SerializableCommand serializableCommand) =>
+		new(serializableCommand.Type, serializableCommand.Description, serializableCommand.Data, serializableCommand.NavigationContext, serializableCommand.Metadata);
 
 	private static Type? ResolveCommandType(string typeName)
 	{
@@ -286,9 +309,29 @@ public interface ISerializableCommand
 /// <summary>
 /// Placeholder command used when the original command cannot be deserialized
 /// </summary>
-internal sealed class PlaceholderCommand(string description, string? navigationContext, ChangeMetadata metadata) : BaseCommand(metadata.ChangeType, metadata.AffectedItems, navigationContext)
+/// <param name="originalType">The command type name as it was saved</param>
+/// <param name="originalDescription">The description as it was saved, without the placeholder prefix</param>
+/// <param name="originalData">The command data as it was saved, if any</param>
+/// <param name="navigationContext">The navigation context as it was saved</param>
+/// <param name="metadata">The metadata as it was saved</param>
+internal sealed class PlaceholderCommand(string originalType, string originalDescription, string? originalData, string? navigationContext, ChangeMetadata metadata) : BaseCommand(metadata.ChangeType, metadata.AffectedItems, navigationContext)
 {
-	public override string Description { get; } = $"[Placeholder] {description}";
+	/// <summary>
+	/// The command type name as it was saved, written back on the next save
+	/// </summary>
+	public string OriginalType { get; } = originalType;
+
+	/// <summary>
+	/// The description as it was saved, written back on the next save
+	/// </summary>
+	public string OriginalDescription { get; } = originalDescription;
+
+	/// <summary>
+	/// The command data as it was saved, written back on the next save
+	/// </summary>
+	public string? OriginalData { get; } = originalData;
+
+	public override string Description => $"[Placeholder] {OriginalDescription}";
 
 	// Keep the deserialized metadata, rather than the fresh timestamp, size and custom data BaseCommand builds
 	public override ChangeMetadata Metadata { get; protected set; } = Ensure.NotNull(metadata);
