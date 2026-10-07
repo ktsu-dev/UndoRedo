@@ -65,6 +65,13 @@ public interface IUndoRedoService
 	public event EventHandler<SaveBoundaryCreatedEventArgs>? SaveBoundaryCreated;
 
 	/// <summary>
+	/// Fired once after any operation that changes the history: execute (including a merge), undo, redo,
+	/// marking a save point, clearing, and a successful load or restore. Subscribe to this one event to
+	/// keep Undo/Redo buttons and the unsaved-changes indicator in sync.
+	/// </summary>
+	public event EventHandler? StateChanged;
+
+	/// <summary>
 	/// Executes a command and adds it to the stack
 	/// </summary>
 	/// <param name="command">The command to execute</param>

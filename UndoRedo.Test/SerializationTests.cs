@@ -462,6 +462,81 @@ public class SerializationTests
 	}
 
 	[TestMethod]
+	public async Task UndoRedoService_LoadStateAsync_RaisesStateChangedOnce()
+	{
+		// Arrange
+		UndoRedoService stack = CreateService();
+		stack.SetSerializer(new JsonUndoRedoSerializer());
+		stack.Execute(new DelegateCommand("A", () => { }, () => { }));
+		byte[] data = await stack.SaveStateAsync().ConfigureAwait(false);
+		stack.Execute(new DelegateCommand("B", () => { }, () => { }));
+		int stateChangedCount = 0;
+		stack.StateChanged += (_, _) => stateChangedCount++;
+
+		// Act
+		bool success = await stack.LoadStateAsync(data).ConfigureAwait(false);
+
+		// Assert
+		Assert.IsTrue(success, "LoadStateAsync should succeed");
+		Assert.AreEqual(1, stateChangedCount, "A successful load should raise StateChanged exactly once");
+	}
+
+	[TestMethod]
+	public void UndoRedoService_RestoreFromState_RaisesStateChangedOnce()
+	{
+		// Arrange
+		UndoRedoService stack = CreateService();
+		stack.Execute(new DelegateCommand("A", () => { }, () => { }));
+		UndoRedoStackState state = stack.GetCurrentState();
+		stack.Execute(new DelegateCommand("B", () => { }, () => { }));
+		int stateChangedCount = 0;
+		stack.StateChanged += (_, _) => stateChangedCount++;
+
+		// Act
+		bool success = stack.RestoreFromState(state);
+
+		// Assert
+		Assert.IsTrue(success, "RestoreFromState should succeed");
+		Assert.AreEqual(1, stateChangedCount, "A successful restore should raise StateChanged exactly once");
+	}
+
+	[TestMethod]
+	public async Task UndoRedoService_LoadStateAsyncMalformedData_RaisesNoStateChanged()
+	{
+		// Arrange
+		UndoRedoService stack = CreateService();
+		stack.SetSerializer(new JsonUndoRedoSerializer());
+		stack.Execute(new DelegateCommand("A", () => { }, () => { }));
+		int stateChangedCount = 0;
+		stack.StateChanged += (_, _) => stateChangedCount++;
+
+		// Act
+		bool success = await stack.LoadStateAsync([0x7B, 0x7B, 0x7B]).ConfigureAwait(false);
+
+		// Assert
+		Assert.IsFalse(success, "Malformed data should fail to load");
+		Assert.AreEqual(0, stateChangedCount, "A failed load leaves the history untouched, so it should raise nothing");
+	}
+
+	[TestMethod]
+	public void UndoRedoService_RestoreFromStateInvalid_RaisesNoStateChanged()
+	{
+		// Arrange
+		UndoRedoService stack = CreateService();
+		stack.Execute(new DelegateCommand("A", () => { }, () => { }));
+		int stateChangedCount = 0;
+		stack.StateChanged += (_, _) => stateChangedCount++;
+		UndoRedoStackState state = new([], 5, [], "1.0", DateTime.UtcNow);
+
+		// Act
+		bool success = stack.RestoreFromState(state);
+
+		// Assert
+		Assert.IsFalse(success, "A position outside the commands should be rejected");
+		Assert.AreEqual(0, stateChangedCount, "A rejected restore leaves the history untouched, so it should raise nothing");
+	}
+
+	[TestMethod]
 	[DataRow(2, DisplayName = "position past the last command")]
 	[DataRow(-2, DisplayName = "position before the start")]
 	public void UndoRedoService_RestoreFromStateInvalidPosition_ReturnsFalseAndKeepsHistory(int position)

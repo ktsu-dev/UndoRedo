@@ -64,6 +64,14 @@ public sealed class UndoRedoService(
 	/// <inheritdoc />
 	public event EventHandler<SaveBoundaryCreatedEventArgs>? SaveBoundaryCreated;
 
+	/// <inheritdoc />
+	public event EventHandler? StateChanged;
+
+	/// <summary>
+	/// Raises <see cref="StateChanged"/> after an operation has changed the history
+	/// </summary>
+	private void OnStateChanged() => StateChanged?.Invoke(this, EventArgs.Empty);
+
 	/// <summary>
 	/// Sets the navigation provider
 	/// </summary>
@@ -121,6 +129,7 @@ public sealed class UndoRedoService(
 				_stackManager.AddCommand(mergedCommand); // Add the merged command
 
 				CommandExecuted?.Invoke(this, new CommandExecutedEventArgs(mergedCommand, _stackManager.CurrentPosition));
+				OnStateChanged();
 				return;
 			}
 		}
@@ -148,6 +157,7 @@ public sealed class UndoRedoService(
 		}
 
 		CommandExecuted?.Invoke(this, new CommandExecutedEventArgs(command, _stackManager.CurrentPosition));
+		OnStateChanged();
 	}
 
 	/// <inheritdoc />
@@ -164,6 +174,7 @@ public sealed class UndoRedoService(
 		command.Undo();
 		_stackManager.MovePrevious();
 		CommandUndone?.Invoke(this, new CommandUndoneEventArgs(command, _stackManager.CurrentPosition));
+		OnStateChanged();
 
 		if (navigateToChange)
 		{
@@ -190,6 +201,7 @@ public sealed class UndoRedoService(
 		command.Execute();
 		_stackManager.MoveNext();
 		CommandRedone?.Invoke(this, new CommandRedoneEventArgs(command, _stackManager.CurrentPosition));
+		OnStateChanged();
 
 		if (navigateToChange)
 		{
@@ -207,6 +219,7 @@ public sealed class UndoRedoService(
 	{
 		SaveBoundary saveBoundary = _saveBoundaryManager.CreateSaveBoundary(_stackManager.CurrentPosition, description);
 		SaveBoundaryCreated?.Invoke(this, new SaveBoundaryCreatedEventArgs(saveBoundary));
+		OnStateChanged();
 	}
 
 	/// <inheritdoc />
@@ -214,6 +227,7 @@ public sealed class UndoRedoService(
 	{
 		_stackManager.Clear();
 		_saveBoundaryManager.Clear();
+		OnStateChanged();
 	}
 
 	/// <inheritdoc />
@@ -248,19 +262,30 @@ public sealed class UndoRedoService(
 		}
 
 		ICommand? lastCommand = null;
-		while (_stackManager.CurrentPosition > saveBoundary.Position)
+		try
 		{
-			ICommand? command = _stackManager.GetCurrentCommand();
-			if (command == null)
+			while (_stackManager.CurrentPosition > saveBoundary.Position)
 			{
-				break;
-			}
+				ICommand? command = _stackManager.GetCurrentCommand();
+				if (command == null)
+				{
+					break;
+				}
 
-			// Stop at the first failure with the position still on the command that failed to undo
-			command.Undo();
-			_stackManager.MovePrevious();
-			lastCommand = command;
-			CommandUndone?.Invoke(this, new CommandUndoneEventArgs(command, _stackManager.CurrentPosition));
+				// Stop at the first failure with the position still on the command that failed to undo
+				command.Undo();
+				_stackManager.MovePrevious();
+				lastCommand = command;
+				CommandUndone?.Invoke(this, new CommandUndoneEventArgs(command, _stackManager.CurrentPosition));
+			}
+		}
+		finally
+		{
+			// Once for the whole walk, including the commands undone before one that failed
+			if (lastCommand != null)
+			{
+				OnStateChanged();
+			}
 		}
 
 		if (navigateToLastChange && lastCommand != null)
@@ -449,10 +474,13 @@ public sealed class UndoRedoService(
 				}
 			}
 
+			OnStateChanged();
 			return true;
 		}
 		catch (Exception ex) when (ex is InvalidOperationException or ArgumentException)
 		{
+			// The history was already cleared, so it has changed even though the restore failed
+			OnStateChanged();
 			return false;
 		}
 	}

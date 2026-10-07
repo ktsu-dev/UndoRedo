@@ -31,6 +31,7 @@ public interface IUndoRedoService
     event EventHandler<CommandUndoneEventArgs>? CommandUndone;
     event EventHandler<CommandRedoneEventArgs>? CommandRedone;
     event EventHandler<SaveBoundaryCreatedEventArgs>? SaveBoundaryCreated;
+    event EventHandler? StateChanged;
     
     // Methods
     void Execute(ICommand command);
@@ -170,6 +171,12 @@ Fired when a command is redone.
 event EventHandler<SaveBoundaryCreatedEventArgs>? SaveBoundaryCreated;
 ```
 Fired when a save boundary is created.
+
+##### StateChanged
+```csharp
+event EventHandler? StateChanged;
+```
+Fired once after any operation that changes the history: executing (including a merge), undoing, redoing, marking a save point, `UndoToSaveBoundaryAsync`, `Clear()`, and a successful `LoadStateAsync()` or `RestoreFromState()`. A load or restore that is rejected leaves the history untouched and raises nothing. Subscribe to this one event to keep Undo/Redo buttons and an unsaved-changes indicator in sync.
 
 #### Methods
 

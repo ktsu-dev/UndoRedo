@@ -194,22 +194,19 @@ foreach (var viz in visualizations)
 ### Events
 
 ```csharp
-// Subscribe to events for UI updates
+// StateChanged fires once after anything that changes the history, including Clear(),
+// LoadStateAsync() and RestoreFromState(), so one subscription keeps the UI in sync
+undoRedoStack.StateChanged += (sender, e) => UpdateUI();
+
+// The per-operation events carry the command, for logging or notifications
 undoRedoStack.CommandExecuted += (sender, e) =>
 {
-    UpdateUI();
     LogAction($"Executed: {e.Command.Description}");
 };
 
 undoRedoStack.CommandUndone += (sender, e) =>
 {
-    UpdateUI();
     LogAction($"Undone: {e.Command.Description}");
-};
-
-undoRedoStack.SaveBoundaryCreated += (sender, e) =>
-{
-    UpdateSaveIndicator(saved: true);
 };
 ```
 
