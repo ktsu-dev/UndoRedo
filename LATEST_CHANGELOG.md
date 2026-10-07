@@ -1,7 +1,8 @@
-## v3.0.2-pre.1 (prerelease)
+## v3.0.2 (patch)
 
 Changes since v3.0.1:
 
-- Bump Polyfill from 11.4.2 to 11.4.3 ([@dependabot[bot]](https://github.com/dependabot[bot]))
-- Bump Polyfill from 11.4.1 to 11.4.2 ([@dependabot[bot]](https://github.com/dependabot[bot]))
+- Move the placeholder round-trip tests next to the malformed-load test ([@Claude](https://github.com/Claude))
+- Keep a placeholder's saved type, description and data through a save [patch] ([@Claude](https://github.com/Claude))
+- Keep a reloaded command's navigation context and metadata [patch] ([@Claude](https://github.com/Claude))
 
