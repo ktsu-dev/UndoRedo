@@ -865,6 +865,43 @@ public class SerializationTests
 	}
 
 #pragma warning disable CA1812 // Instantiated by reflection during deserialization
+	[TestMethod]
+	public async Task UndoRedoService_LoadStateSerializableCommand_RestoresNavigationContextAndMetadata()
+	{
+		// Arrange
+		Dictionary<string, object> customData = new() { ["origin"] = "keyboard" };
+		NavigatingSerializableCommand original = new("hello", "line:42", 7, customData);
+
+		UndoRedoService stack = CreateService();
+		stack.SetSerializer(new JsonUndoRedoSerializer());
+		stack.Execute(original);
+		byte[] data = await stack.SaveStateAsync().ConfigureAwait(false);
+
+		RecordingNavigationProvider navigation = new();
+		UndoRedoService newStack = new(new StackManager(), new SaveBoundaryManager(), new CommandMerger(), navigationProvider: navigation);
+		newStack.SetSerializer(new JsonUndoRedoSerializer());
+
+		// Act
+		bool success = await newStack.LoadStateAsync(data).ConfigureAwait(false);
+
+		// Assert: the reloaded command is the real type, with the state its parameterless constructor cannot know
+		Assert.IsTrue(success);
+		NavigatingSerializableCommand reloaded = (NavigatingSerializableCommand)newStack.Commands.Single();
+		Assert.AreEqual("hello", reloaded.Text);
+		Assert.AreEqual("line:42", reloaded.NavigationContext);
+		Assert.AreEqual(original.Metadata.ChangeType, reloaded.Metadata.ChangeType);
+		CollectionAssert.AreEqual(original.Metadata.AffectedItems.ToList(), reloaded.Metadata.AffectedItems.ToList());
+		Assert.AreEqual(7, reloaded.Metadata.Size);
+		Assert.AreEqual(original.Metadata.Timestamp, reloaded.Metadata.Timestamp);
+		Assert.IsNotNull(reloaded.Metadata.CustomData);
+		Assert.AreEqual("keyboard", reloaded.Metadata.CustomData["origin"].ToString());
+
+		// Undo still navigates to where the change was made
+		bool undone = await newStack.UndoAsync().ConfigureAwait(false);
+		Assert.IsTrue(undone);
+		Assert.AreEqual("line:42", navigation.LastNavigatedContext);
+	}
+
 	private sealed class SerializableNonCommand : ISerializableCommand
 	{
 		public string SerializeData() => string.Empty;
@@ -1041,5 +1078,46 @@ public class SerializationTests
 			JsonElement element = JsonSerializer.Deserialize<JsonElement>(data);
 			Value = element.GetProperty(nameof(Value)).GetString() ?? string.Empty;
 		}
+	}
+
+	private sealed class RecordingNavigationProvider : INavigationProvider
+	{
+		public string? LastNavigatedContext { get; private set; }
+
+		public Task<bool> NavigateToAsync(string context, CancellationToken cancellationToken = default)
+		{
+			LastNavigatedContext = context;
+			return Task.FromResult(true);
+		}
+
+		public bool IsValidContext(string context) => true;
+	}
+
+	private sealed class NavigatingSerializableCommand : BaseCommand, ISerializableCommand
+	{
+		public string Text { get; private set; } = string.Empty;
+
+		public NavigatingSerializableCommand() : base(ChangeType.Insert, ["doc"])
+		{
+		}
+
+		public NavigatingSerializableCommand(string text, string navigationContext, int size, IReadOnlyDictionary<string, object> customData)
+			: base(ChangeType.Insert, ["doc"], navigationContext, size, customData) => Text = text;
+
+		public override string Description => $"Set {Text}";
+
+		public override void Execute()
+		{
+			// Test implementation
+		}
+
+		public override void Undo()
+		{
+			// Test implementation
+		}
+
+		public string SerializeData() => Text;
+
+		public void DeserializeData(string data) => Text = data;
 	}
 }

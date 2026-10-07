@@ -37,4 +37,17 @@ public abstract class BaseCommand(
 
 	/// <inheritdoc />
 	public virtual ICommand MergeWith(ICommand other) => throw new InvalidOperationException("This command does not support merging");
+
+	/// <summary>
+	/// Puts back the navigation context and metadata a command was saved with. A reloaded
+	/// <see cref="Core.Services.ISerializableCommand"/> is built with its parameterless constructor, which knows
+	/// neither, and <see cref="Core.Services.ISerializableCommand.DeserializeData"/> only restores the command's own data.
+	/// </summary>
+	/// <param name="navigationContext">The navigation context the command was saved with</param>
+	/// <param name="metadata">The metadata the command was saved with</param>
+	internal void RestoreSerializedState(string? navigationContext, ChangeMetadata metadata)
+	{
+		NavigationContext = navigationContext;
+		Metadata = metadata;
+	}
 }
