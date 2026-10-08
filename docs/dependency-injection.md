@@ -116,9 +116,9 @@ services.AddUndoRedo(undoRedoOptions);
 
 ## Navigation Provider Registration
 
-### Scoped Navigation Provider
+### Transient Navigation Provider
 
-For most applications, register a scoped navigation provider:
+For most applications, register a transient navigation provider:
 
 ```csharp
 services.AddUndoRedo();
@@ -172,14 +172,14 @@ public class WpfNavigationProvider : INavigationProvider
 
 ### Understanding Lifetimes
 
-| Service                | Default Lifetime | Reason                                      |
-| ---------------------- | ---------------- | ------------------------------------------- |
-| `IUndoRedoService`     | Transient        | Each consumer gets own instance             |
-| `IStackManager`        | Transient        | Isolated command stacks                     |
-| `ISaveBoundaryManager` | Transient        | Isolated save state tracking                |
-| `ICommandMerger`       | Transient        | Stateless, can be transient                 |
-| `UndoRedoOptions`      | Singleton        | Configuration is shared                     |
-| `INavigationProvider`  | Scoped           | UI-related, often scoped to request/session |
+| Service                | Default Lifetime | Reason                                                                  |
+| ---------------------- | ---------------- | ----------------------------------------------------------------------- |
+| `IUndoRedoService`     | Transient        | Each consumer gets own instance                                         |
+| `IStackManager`        | Transient        | Isolated command stacks                                                 |
+| `ISaveBoundaryManager` | Transient        | Isolated save state tracking                                            |
+| `ICommandMerger`       | Transient        | Stateless, can be transient                                             |
+| `UndoRedoOptions`      | Singleton        | Configuration is shared                                                 |
+| `INavigationProvider`  | Transient        | Injectable into both the transient and the singleton `IUndoRedoService` |
 
 ### Custom Lifetime Registration
 
