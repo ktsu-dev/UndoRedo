@@ -1,6 +1,4 @@
-## v3.2.0 (minor)
+## v3.2.0
 
-Changes since v3.1.0:
-
-- Raise StateChanged after every history change, including Clear, load and restore [minor] ([@Claude](https://github.com/Claude))
+No significant changes detected since v3.2.0.
 
