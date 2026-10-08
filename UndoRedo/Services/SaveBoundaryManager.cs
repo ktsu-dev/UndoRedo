@@ -11,6 +11,12 @@ public sealed class SaveBoundaryManager : ISaveBoundaryManager
 {
 	private readonly List<SaveBoundary> _saveBoundaries = [];
 
+	// The boundary the most recent save made: the only one whose position matches what is on disk.
+	// Older boundaries stay in the list for UndoToSaveBoundaryAsync and the visualization, but a later
+	// save replaced their content, so they no longer count as clean. Null when nothing has been saved,
+	// or when that boundary was removed, in which case no position matches disk.
+	private SaveBoundary? _latestSaveBoundary;
+
 	/// <inheritdoc />
 	public IReadOnlyList<SaveBoundary> SaveBoundaries => _saveBoundaries.AsReadOnly();
 
@@ -31,8 +37,8 @@ public sealed class SaveBoundaryManager : ISaveBoundaryManager
 			return false;
 		}
 
-		// No unsaved changes if we're exactly at a save boundary position
-		return !_saveBoundaries.Any(boundary => boundary.Position == currentPosition);
+		// No unsaved changes only at the latest save; an older boundary's content is no longer on disk
+		return _latestSaveBoundary is null || _latestSaveBoundary.Position != currentPosition;
 	}
 
 	/// <inheritdoc />
@@ -40,6 +46,7 @@ public sealed class SaveBoundaryManager : ISaveBoundaryManager
 	{
 		SaveBoundary saveBoundary = new(position, description);
 		_saveBoundaries.Add(saveBoundary);
+		_latestSaveBoundary = saveBoundary;
 		InitialStateIsClean = false;
 		return saveBoundary;
 	}
@@ -47,9 +54,14 @@ public sealed class SaveBoundaryManager : ISaveBoundaryManager
 	/// <summary>
 	/// Adds a save boundary recreated from saved state, keeping the time it was originally created
 	/// </summary>
+	/// <remarks>
+	/// Boundaries are restored in the order they were created, so the last one restored becomes the latest.
+	/// </remarks>
 	internal void RestoreSaveBoundary(SaveBoundary saveBoundary)
 	{
-		_saveBoundaries.Add(new SaveBoundary(saveBoundary.Position, saveBoundary.Description, saveBoundary.Timestamp));
+		SaveBoundary restored = new(saveBoundary.Position, saveBoundary.Description, saveBoundary.Timestamp);
+		_saveBoundaries.Add(restored);
+		_latestSaveBoundary = restored;
 		InitialStateIsClean = false;
 	}
 
@@ -61,6 +73,7 @@ public sealed class SaveBoundaryManager : ISaveBoundaryManager
 		{
 			if (_saveBoundaries[i].Position > maxValidPosition)
 			{
+				ForgetIfLatest(_saveBoundaries[i]);
 				_saveBoundaries.RemoveAt(i);
 				removed++;
 			}
@@ -90,13 +103,19 @@ public sealed class SaveBoundaryManager : ISaveBoundaryManager
 			// -1 is a reachable position, so a boundary shifted exactly there is still a valid save point
 			if (newPosition < -1)
 			{
+				ForgetIfLatest(boundary);
 				_saveBoundaries.RemoveAt(i);
 			}
 			else
 			{
 				// Create a new boundary with adjusted position that is still the same save point, so a
 				// boundary a caller already holds can be resolved to it
-				_saveBoundaries[i] = new SaveBoundary(boundary, newPosition);
+				SaveBoundary adjusted = new(boundary, newPosition);
+				_saveBoundaries[i] = adjusted;
+				if (ReferenceEquals(boundary, _latestSaveBoundary))
+				{
+					_latestSaveBoundary = adjusted;
+				}
 			}
 		}
 	}
@@ -120,6 +139,16 @@ public sealed class SaveBoundaryManager : ISaveBoundaryManager
 	public void Clear()
 	{
 		_saveBoundaries.Clear();
+		_latestSaveBoundary = null;
 		InitialStateIsClean = true;
+	}
+
+	// Once the latest save's boundary is gone no position matches disk, so do not fall back to an older one
+	private void ForgetIfLatest(SaveBoundary boundary)
+	{
+		if (ReferenceEquals(boundary, _latestSaveBoundary))
+		{
+			_latestSaveBoundary = null;
+		}
 	}
 }

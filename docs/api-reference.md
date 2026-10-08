@@ -102,6 +102,8 @@ bool HasUnsavedChanges { get; }
 ```
 Gets whether there are unsaved changes since the last save boundary.
 
+Only the most recent save counts as clean. Undoing back to an earlier save point reports unsaved changes, because the later save replaced that content on disk. If the latest save point is discarded, for example by executing a new command after undoing past it, every position reports unsaved changes until the next save.
+
 **Returns:** `true` if there are unsaved changes, `false` otherwise.
 
 **Example:**
