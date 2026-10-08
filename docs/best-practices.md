@@ -447,10 +447,8 @@ public class UndoRedoToolbar : UserControl
         _undoRedoService = undoRedoService;
         InitializeComponent();
 
-        // Subscribe to events for reactive UI updates
-        _undoRedoService.CommandExecuted += (s, e) => UpdateButtons();
-        _undoRedoService.CommandUndone += (s, e) => UpdateButtons();
-        _undoRedoService.CommandRedone += (s, e) => UpdateButtons();
+        // StateChanged covers every change, including Clear(), LoadStateAsync() and RestoreFromState()
+        _undoRedoService.StateChanged += (s, e) => UpdateButtons();
 
         UpdateButtons();
     }

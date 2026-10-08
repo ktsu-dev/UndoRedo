@@ -241,6 +241,65 @@ public class UndoRedoStackTests
 	}
 
 	[TestMethod]
+	public void StateChanged_FiresOnceForEachHistoryChange()
+	{
+		// Arrange
+		UndoRedoService stack = CreateService();
+		int stateChangedCount = 0;
+		stack.StateChanged += (_, _) => stateChangedCount++;
+
+		// Act & Assert
+		stack.Execute(new DelegateCommand("A", () => { }, () => { }));
+		Assert.AreEqual(1, stateChangedCount, "StateChanged should fire once when executing a command");
+
+		stack.Undo();
+		Assert.AreEqual(2, stateChangedCount, "StateChanged should fire once when undoing a command");
+
+		stack.Redo();
+		Assert.AreEqual(3, stateChangedCount, "StateChanged should fire once when redoing a command");
+
+		stack.MarkAsSaved();
+		Assert.AreEqual(4, stateChangedCount, "StateChanged should fire once when marking as saved");
+	}
+
+	[TestMethod]
+	public void StateChanged_Clear_FiresOnce()
+	{
+		// Arrange
+		UndoRedoService stack = CreateService();
+		stack.Execute(new DelegateCommand("A", () => { }, () => { }));
+		int stateChangedCount = 0;
+		stack.StateChanged += (_, _) => stateChangedCount++;
+
+		// Act
+		stack.Clear();
+
+		// Assert
+		Assert.AreEqual(1, stateChangedCount, "Clear should raise StateChanged exactly once");
+		Assert.IsFalse(stack.CanUndo, "A UI refreshed from StateChanged should see that nothing can be undone");
+	}
+
+	[TestMethod]
+	public async Task StateChanged_UndoToSaveBoundary_FiresOnceForTheWholeWalk()
+	{
+		// Arrange
+		UndoRedoService stack = CreateService();
+		stack.Execute(new DelegateCommand("A", () => { }, () => { }));
+		stack.MarkAsSaved();
+		stack.Execute(new DelegateCommand("B", () => { }, () => { }));
+		stack.Execute(new DelegateCommand("C", () => { }, () => { }));
+		int stateChangedCount = 0;
+		stack.StateChanged += (_, _) => stateChangedCount++;
+
+		// Act
+		bool success = await stack.UndoToSaveBoundaryAsync(stack.SaveBoundaries[0], navigateToLastChange: false).ConfigureAwait(false);
+
+		// Assert
+		Assert.IsTrue(success);
+		Assert.AreEqual(1, stateChangedCount, "Undoing to a save boundary should raise StateChanged once, not once per command");
+	}
+
+	[TestMethod]
 	public void GetCommandsInRange_CountOfIntMaxValueFromNonZeroStart_ReturnsRemainingCommands()
 	{
 		StackManager stack = new();

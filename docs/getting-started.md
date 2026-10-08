@@ -208,7 +208,9 @@ public partial class SimpleTextEditor : Form
         var serviceProvider = services.BuildServiceProvider();
         _undoRedoService = serviceProvider.GetRequiredService<IUndoRedoService>();
 
-        // Subscribe to events
+        // Subscribe to events. StateChanged fires after any change to the history, including
+        // Clear() for a new document and LoadStateAsync() for an opened one.
+        _undoRedoService.StateChanged += (s, e) => UpdateUI();
         _undoRedoService.CommandExecuted += OnCommandExecuted;
         _undoRedoService.CommandUndone += OnCommandUndone;
         _undoRedoService.CommandRedone += OnCommandRedone;
@@ -315,6 +317,12 @@ undoRedoService.CommandRedone += (sender, e) =>
 undoRedoService.SaveBoundaryCreated += (sender, e) =>
 {
     Console.WriteLine($"Save boundary created: {e.SaveBoundary.Description}");
+};
+
+// Fires once after any change to the history, including Clear(), LoadStateAsync() and RestoreFromState()
+undoRedoService.StateChanged += (sender, e) =>
+{
+    Console.WriteLine($"History changed: can undo {undoRedoService.CanUndo}, can redo {undoRedoService.CanRedo}");
 };
 ```
 

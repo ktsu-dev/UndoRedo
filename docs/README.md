@@ -123,9 +123,8 @@ public class MyNavigationProvider : INavigationProvider
 ### 📡 Event-Driven Architecture
 
 ```csharp
-undoRedoService.CommandExecuted += (s, e) => UpdateUI();
+undoRedoService.StateChanged += (s, e) => UpdateUI(); // any change, including Clear and Load
 undoRedoService.CommandUndone += (s, e) => ShowUndoNotification(e.Command);
-undoRedoService.SaveBoundaryCreated += (s, e) => UpdateSaveStatus();
 ```
 
 ## Architecture Highlights
