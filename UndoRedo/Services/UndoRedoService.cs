@@ -411,12 +411,17 @@ public sealed class UndoRedoService(
 			return false;
 		}
 
+		// Copy the lists before clearing. A state built from the live Commands or SaveBoundaries
+		// views would otherwise be emptied by the Clear() calls below.
+		List<ICommand> commands = [.. state.Commands];
+		List<SaveBoundary> saveBoundaries = [.. state.SaveBoundaries];
+
 		try
 		{
 			_stackManager.Clear();
 			_saveBoundaryManager.Clear();
 
-			foreach (ICommand command in state.Commands)
+			foreach (ICommand command in commands)
 			{
 				_stackManager.AddCommand(command);
 			}
@@ -437,7 +442,7 @@ public sealed class UndoRedoService(
 			// Recreate save boundaries at the stored positions. The built-in manager keeps each one's
 			// original timestamp; ISaveBoundaryManager has no member for that, so a custom manager
 			// creates them afresh.
-			foreach (SaveBoundary boundary in state.SaveBoundaries)
+			foreach (SaveBoundary boundary in saveBoundaries)
 			{
 				if (_saveBoundaryManager is SaveBoundaryManager builtInManager)
 				{

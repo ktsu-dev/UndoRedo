@@ -508,6 +508,51 @@ public class SerializationTests
 	}
 
 	[TestMethod]
+	public void UndoRedoService_RestoreFromStateBuiltFromLiveCollections_KeepsHistory()
+	{
+		// Arrange
+		UndoRedoService stack = CreateService();
+		stack.Execute(new DelegateCommand("A", () => { }, () => { }));
+		stack.Execute(new DelegateCommand("B", () => { }, () => { }));
+		stack.Execute(new DelegateCommand("C", () => { }, () => { }));
+		stack.MarkAsSaved();
+
+		UndoRedoStackState state = new(stack.Commands, 0, stack.SaveBoundaries, "1.0", DateTime.UtcNow);
+
+		// Act
+		bool success = stack.RestoreFromState(state);
+
+		// Assert
+		Assert.IsTrue(success, "RestoreFromState should succeed");
+		Assert.AreEqual(3, stack.CommandCount, "Restoring from the live Commands view should keep every command");
+		Assert.AreEqual(0, stack.CurrentPosition, "Restoring should land at the requested position");
+		Assert.HasCount(1, stack.SaveBoundaries, "Restoring from the live SaveBoundaries view should keep the save boundary");
+		Assert.AreEqual(2, stack.SaveBoundaries[0].Position, "The save boundary should keep its position");
+	}
+
+	[TestMethod]
+	public void UndoRedoService_RestoreFromStateBuiltFromLiveSaveBoundaries_KeepsSavedState()
+	{
+		// Arrange
+		UndoRedoService stack = CreateService();
+		stack.Execute(new DelegateCommand("A", () => { }, () => { }));
+		stack.Execute(new DelegateCommand("B", () => { }, () => { }));
+		stack.Execute(new DelegateCommand("C", () => { }, () => { }));
+		stack.MarkAsSaved();
+
+		UndoRedoStackState state = new([.. stack.Commands], 2, stack.SaveBoundaries, "1.0", DateTime.UtcNow);
+
+		// Act
+		bool success = stack.RestoreFromState(state);
+
+		// Assert
+		Assert.IsTrue(success, "RestoreFromState should succeed");
+		Assert.AreEqual(3, stack.CommandCount, "Restoring should keep every command");
+		Assert.HasCount(1, stack.SaveBoundaries, "Restoring from the live SaveBoundaries view should keep the save boundary");
+		Assert.IsFalse(stack.HasUnsavedChanges, "The restored position is the saved position, so nothing is unsaved");
+	}
+
+	[TestMethod]
 	[DataRow(-7, DisplayName = "boundary before the start")]
 	[DataRow(-2, DisplayName = "boundary one before the start")]
 	[DataRow(2, DisplayName = "boundary at the command count")]
