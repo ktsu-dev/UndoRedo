@@ -588,10 +588,71 @@ public class UndoRedoStackTests
 
 		stack.Undo(); // Back to 2
 		stack.Undo(); // Back to 1
-		Assert.IsFalse(stack.HasUnsavedChanges, "HasUnsavedChanges should be false when at earlier save boundary");
+		Assert.IsTrue(stack.HasUnsavedChanges, "HasUnsavedChanges should be true at an earlier save boundary, since the later save replaced it on disk");
 
 		stack.Undo(); // Back to 0
 		Assert.IsTrue(stack.HasUnsavedChanges, "HasUnsavedChanges should be true before first save boundary");
+	}
+
+	[TestMethod]
+	public void SaveBoundaries_UndoToEarlierSaveAfterLaterSave_HasUnsavedChanges()
+	{
+		UndoRedoService stack = CreateService();
+		int value = 0;
+
+		stack.Execute(new DelegateCommand("A", () => value = 1, () => value = 0));
+		stack.MarkAsSaved("save 1");
+		stack.Execute(new DelegateCommand("B", () => value = 2, () => value = 1));
+		stack.MarkAsSaved("save 2");
+		stack.Undo();
+
+		Assert.AreEqual(1, value);
+		Assert.IsTrue(stack.HasUnsavedChanges, "The document matches save 1, but disk holds save 2");
+
+		stack.Redo();
+		Assert.IsFalse(stack.HasUnsavedChanges, "The document matches the latest save again");
+	}
+
+	[TestMethod]
+	public void SaveBoundaries_LatestSaveRemovedByNewBranch_OlderSaveStaysDirty()
+	{
+		UndoRedoService stack = CreateService();
+		int value = 0;
+
+		stack.Execute(new DelegateCommand("A", () => value = 1, () => value = 0));
+		stack.MarkAsSaved("save 1");
+		stack.Execute(new DelegateCommand("B", () => value = 2, () => value = 1));
+		stack.MarkAsSaved("save 2");
+		stack.Undo();
+
+		// Branching discards B and the boundary after it, but disk still holds save 2
+		stack.Execute(new DelegateCommand("C", () => value = 3, () => value = 1));
+		Assert.HasCount(1, stack.SaveBoundaries);
+
+		stack.Undo();
+		Assert.AreEqual(1, value);
+		Assert.IsTrue(stack.HasUnsavedChanges, "An older boundary must not stand in for a latest save that no longer exists");
+	}
+
+	[TestMethod]
+	public void SaveBoundaries_RestoreFromState_KeepsOnlyLatestSaveClean()
+	{
+		UndoRedoService original = CreateService();
+		int value = 0;
+
+		original.Execute(new DelegateCommand("A", () => value = 1, () => value = 0));
+		original.MarkAsSaved("save 1");
+		original.Execute(new DelegateCommand("B", () => value = 2, () => value = 1));
+		original.MarkAsSaved("save 2");
+		original.Undo();
+		Assert.AreEqual(1, value);
+
+		UndoRedoService restored = CreateService();
+		Assert.IsTrue(restored.RestoreFromState(original.GetCurrentState()));
+
+		Assert.IsTrue(restored.HasUnsavedChanges, "The restored stack sits at save 1, which save 2 replaced");
+		restored.Redo();
+		Assert.IsFalse(restored.HasUnsavedChanges, "The restored stack is clean at the latest save");
 	}
 
 	[TestMethod]
