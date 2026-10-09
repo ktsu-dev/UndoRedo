@@ -1,4 +1,6 @@
-## v3.2.0
+## v3.2.1 (patch)
 
-No significant changes detected since v3.2.0.
+Changes since v3.2.0:
+
+- Count only the latest save point as clean in HasUnsavedChanges [patch] ([@Claude](https://github.com/Claude))
 
