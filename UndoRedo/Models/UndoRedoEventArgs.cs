@@ -52,3 +52,22 @@ public sealed class SaveBoundaryCreatedEventArgs(SaveBoundary saveBoundary) : Ev
 	/// </summary>
 	public SaveBoundary SaveBoundary { get; } = saveBoundary;
 }
+
+/// <summary>
+/// Event args for when the oldest commands are dropped from the history
+/// </summary>
+/// <param name="commands">The dropped commands, oldest first</param>
+/// <param name="position">The current position after the drop</param>
+public sealed class CommandsDroppedEventArgs(IReadOnlyList<ICommand> commands, int position) : EventArgs
+{
+	/// <summary>
+	/// The dropped commands, oldest first. They can no longer be undone or redone, so anything they
+	/// held only for undo can be released.
+	/// </summary>
+	public IReadOnlyList<ICommand> Commands { get; } = commands;
+
+	/// <summary>
+	/// The current position in the undo/redo stack after the drop
+	/// </summary>
+	public int Position { get; } = position;
+}

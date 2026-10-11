@@ -250,6 +250,29 @@ await undoRedoStack.UndoAsync(navigateToChange: true);
 await undoRedoStack.RedoAsync(navigateToChange: true);
 ```
 
+### Dropping the oldest steps
+
+`MaxStackSize` limits the history by count. To limit it by anything else, such as the memory the
+commands hold, measure it yourself and drop the oldest steps with `DropOldest`:
+
+```csharp
+undoRedoStack.CommandsDropped += (sender, e) =>
+{
+    // e.Commands can no longer be undone, so release whatever they held for undo
+    foreach (ICommand command in e.Commands)
+    {
+        (command as IDisposable)?.Dispose();
+    }
+};
+
+int dropped = undoRedoStack.DropOldest(10);
+```
+
+Only commands at or before the current position are dropped, so a redoable step is never lost.
+Save boundaries move down with the history: a save on the last dropped step lands on position -1,
+the state the history now starts from, and saves on earlier steps are removed because they can no
+longer be reached. `CommandsDropped` also fires when `MaxStackSize` trims the history.
+
 ## Integration Examples
 
 ### Text Editor Integration

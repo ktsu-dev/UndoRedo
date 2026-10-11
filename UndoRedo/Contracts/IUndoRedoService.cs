@@ -65,6 +65,12 @@ public interface IUndoRedoService
 	public event EventHandler<SaveBoundaryCreatedEventArgs>? SaveBoundaryCreated;
 
 	/// <summary>
+	/// Fired when the oldest commands are dropped, by <see cref="DropOldest"/> or by
+	/// <see cref="UndoRedoOptions.MaxStackSize"/>
+	/// </summary>
+	public event EventHandler<CommandsDroppedEventArgs>? CommandsDropped;
+
+	/// <summary>
 	/// Fired once after any operation that changes the history: execute (including a merge), undo, redo,
 	/// marking a save point, clearing, and a successful load or restore. Subscribe to this one event to
 	/// keep Undo/Redo buttons and the unsaved-changes indicator in sync.
@@ -110,6 +116,32 @@ public interface IUndoRedoService
 	/// </summary>
 	/// <param name="description">Optional description of what was saved</param>
 	public void MarkAsSaved(string? description = null);
+
+	/// <summary>
+	/// Drops the oldest commands from the history, so they can no longer be undone
+	/// </summary>
+	/// <remarks>
+	/// <para>
+	/// Only commands at or before the current position are dropped: a command that has been undone is
+	/// not applied, so the state before it is not the state after the commands below it, and dropping it
+	/// from the start would leave the first position standing for a state that never existed. The count
+	/// is clamped to <c>CurrentPosition + 1</c>, so this never drops a redoable command.
+	/// </para>
+	/// <para>
+	/// Positions move down by the number dropped. A save boundary on the last dropped command lands on
+	/// -1, which is the state the history now starts from; boundaries on earlier commands name states
+	/// that can no longer be reached, and are removed. Once anything is dropped, -1 is no longer the
+	/// clean initial state, so it counts as unsaved unless a save boundary is on it.
+	/// </para>
+	/// <para>
+	/// Raises <see cref="CommandsDropped"/> and then <see cref="StateChanged"/> when anything is dropped,
+	/// and neither when nothing is.
+	/// </para>
+	/// </remarks>
+	/// <param name="count">How many of the oldest commands to drop</param>
+	/// <returns>How many commands were dropped</returns>
+	/// <exception cref="ArgumentOutOfRangeException">Thrown when <paramref name="count"/> is negative</exception>
+	public int DropOldest(int count);
 
 	/// <summary>
 	/// Clears the entire stack and all save boundaries
