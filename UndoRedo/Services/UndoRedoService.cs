@@ -65,6 +65,9 @@ public sealed class UndoRedoService(
 	public event EventHandler<SaveBoundaryCreatedEventArgs>? SaveBoundaryCreated;
 
 	/// <inheritdoc />
+	public event EventHandler<CommandsDroppedEventArgs>? CommandsDropped;
+
+	/// <inheritdoc />
 	public event EventHandler? StateChanged;
 
 	/// <summary>
@@ -146,18 +149,62 @@ public sealed class UndoRedoService(
 		// Add to stack
 		_stackManager.AddCommand(command);
 
-		// Trim stack if needed
-		if (_options.MaxStackSize > 0)
+		// Trim stack if needed. The new command is the current one, so everything below it is applied.
+		List<ICommand> dropped = [];
+		if (_options.MaxStackSize > 0 && _stackManager.Commands.Count > _options.MaxStackSize)
 		{
-			int removedCount = _stackManager.TrimToSize(_options.MaxStackSize);
-			if (removedCount > 0)
-			{
-				_saveBoundaryManager.AdjustPositions(-removedCount);
-			}
+			dropped = RemoveOldest(_stackManager.Commands.Count - _options.MaxStackSize);
 		}
 
 		CommandExecuted?.Invoke(this, new CommandExecutedEventArgs(command, _stackManager.CurrentPosition));
+		if (dropped.Count > 0)
+		{
+			CommandsDropped?.Invoke(this, new CommandsDroppedEventArgs(dropped, _stackManager.CurrentPosition));
+		}
+
 		OnStateChanged();
+	}
+
+	/// <inheritdoc />
+	public int DropOldest(int count)
+	{
+		if (count < 0)
+		{
+			throw new ArgumentOutOfRangeException(nameof(count), count, "The number of commands to drop cannot be negative.");
+		}
+
+		int drop = Math.Min(count, _stackManager.CurrentPosition + 1);
+		if (drop <= 0)
+		{
+			return 0;
+		}
+
+		List<ICommand> dropped = RemoveOldest(drop);
+		CommandsDropped?.Invoke(this, new CommandsDroppedEventArgs(dropped, _stackManager.CurrentPosition));
+		OnStateChanged();
+		return dropped.Count;
+	}
+
+	/// <summary>
+	/// Removes the oldest <paramref name="count"/> commands, all at or before the current position, and
+	/// moves the save boundaries down with them
+	/// </summary>
+	/// <returns>The removed commands, oldest first</returns>
+	private List<ICommand> RemoveOldest(int count)
+	{
+		List<ICommand> dropped = [.. _stackManager.Commands.Take(count)];
+		if (count >= _stackManager.Commands.Count)
+		{
+			// TrimToSize keeps at least one command, so dropping the whole stack is a clear
+			_stackManager.Clear();
+		}
+		else
+		{
+			_stackManager.TrimToSize(_stackManager.Commands.Count - count);
+		}
+
+		_saveBoundaryManager.AdjustPositions(-count);
+		return dropped;
 	}
 
 	/// <inheritdoc />
