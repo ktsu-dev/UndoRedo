@@ -369,6 +369,13 @@ public sealed class UndoRedoService(
 
 		try
 		{
+			// A context the provider reports as unreachable, such as a closed document or a deleted element,
+			// is skipped rather than handed to NavigateToAsync
+			if (!_navigationProvider.IsValidContext(navigationContext!))
+			{
+				return;
+			}
+
 			using CancellationTokenSource cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
 
 			// CancelAfter throws for negative delays and for delays past its limit, which is

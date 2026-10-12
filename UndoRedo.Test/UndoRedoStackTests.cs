@@ -694,6 +694,46 @@ public class UndoRedoStackTests
 	}
 
 	[TestMethod]
+	public async Task UndoAsync_ContextReportedInvalid_SkipsNavigationAndAppliesUndo()
+	{
+		// Arrange
+		UndoRedoService stack = CreateService();
+		InvalidContextNavigationProvider navigationProvider = new();
+		stack.SetNavigationProvider(navigationProvider);
+		int value = 0;
+		stack.Execute(new DelegateCommand("Increment", () => value++, () => value--, navigationContext: "closed-document"));
+
+		// Act
+		bool result = await stack.UndoAsync(navigateToChange: true).ConfigureAwait(false);
+
+		// Assert
+		Assert.IsTrue(result);
+		Assert.AreEqual(0, value);
+		Assert.AreEqual("closed-document", navigationProvider.LastValidatedContext, "IsValidContext should be consulted before navigating");
+		Assert.AreEqual(0, navigationProvider.NavigateCount, "A context the provider reports as invalid should not be navigated to");
+	}
+
+	[TestMethod]
+	public async Task RedoAsync_ContextReportedInvalid_SkipsNavigationAndAppliesRedo()
+	{
+		// Arrange
+		UndoRedoService stack = CreateService();
+		InvalidContextNavigationProvider navigationProvider = new();
+		stack.SetNavigationProvider(navigationProvider);
+		int value = 0;
+		stack.Execute(new DelegateCommand("Increment", () => value++, () => value--, navigationContext: "deleted-element"));
+		await stack.UndoAsync(navigateToChange: false).ConfigureAwait(false);
+
+		// Act
+		bool result = await stack.RedoAsync(navigateToChange: true).ConfigureAwait(false);
+
+		// Assert
+		Assert.IsTrue(result);
+		Assert.AreEqual(1, value);
+		Assert.AreEqual(0, navigationProvider.NavigateCount, "A context the provider reports as invalid should not be navigated to");
+	}
+
+	[TestMethod]
 	public async Task RedoAsync_NavigationProviderThrows_ReturnsTrueWithRedoApplied()
 	{
 		// Arrange
@@ -1392,6 +1432,25 @@ public class UndoRedoStackTests
 			throw new InvalidOperationException("editor closed");
 
 		public bool IsValidContext(string context) => true;
+	}
+
+	private sealed class InvalidContextNavigationProvider : INavigationProvider
+	{
+		public string? LastValidatedContext { get; private set; }
+
+		public int NavigateCount { get; private set; }
+
+		public Task<bool> NavigateToAsync(string context, CancellationToken cancellationToken = default)
+		{
+			NavigateCount++;
+			return Task.FromResult(true);
+		}
+
+		public bool IsValidContext(string context)
+		{
+			LastValidatedContext = context;
+			return false;
+		}
 	}
 
 	private sealed class SlowNavigationProvider : INavigationProvider
