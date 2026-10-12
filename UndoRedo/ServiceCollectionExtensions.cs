@@ -80,12 +80,30 @@ public static class ServiceCollectionExtensions
 	}
 
 	/// <summary>
+	/// Adds a singleton undo/redo service to the service collection with custom configuration
+	/// </summary>
+	/// <param name="services">The service collection</param>
+	/// <param name="configureOptions">Configuration action</param>
+	/// <returns>The service collection for chaining</returns>
+	public static IServiceCollection AddSingletonUndoRedo(this IServiceCollection services, Action<UndoRedoOptionsBuilder> configureOptions)
+	{
+		Ensure.NotNull(services);
+		Ensure.NotNull(configureOptions);
+
+		UndoRedoOptionsBuilder builder = new();
+		configureOptions(builder);
+		UndoRedoOptions options = builder.Build();
+
+		return services.AddSingletonUndoRedo(options);
+	}
+
+	/// <summary>
 	/// Adds a transient navigation provider to the service collection
 	/// </summary>
 	/// <remarks>
 	/// Transient rather than scoped, so it can be injected into the transient service from
 	/// <see cref="AddUndoRedo(IServiceCollection, UndoRedoOptions?)"/> and the singleton from
-	/// <see cref="AddSingletonUndoRedo"/> without failing scope validation.
+	/// <see cref="AddSingletonUndoRedo(IServiceCollection, UndoRedoOptions?)"/> without failing scope validation.
 	/// </remarks>
 	/// <typeparam name="TNavigationProvider">The navigation provider type</typeparam>
 	/// <param name="services">The service collection</param>

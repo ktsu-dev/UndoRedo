@@ -4,6 +4,7 @@ namespace ktsu.UndoRedo.Test;
 
 using ktsu.UndoRedo.Contracts;
 using ktsu.UndoRedo.Core;
+using ktsu.UndoRedo.Models;
 using Microsoft.Extensions.DependencyInjection;
 
 [TestClass]
@@ -56,5 +57,35 @@ public class ServiceCollectionExtensionsTests
 		// Assert
 		Assert.IsNotNull(provider.GetRequiredService<IUndoRedoService>(), "The service should resolve from the root provider");
 		Assert.IsNotNull(scope.ServiceProvider.GetRequiredService<IUndoRedoService>(), "The service should resolve from a scope");
+	}
+	[TestMethod]
+	public void AddSingletonUndoRedo_WithBuilder_RegistersConfiguredSingleton()
+	{
+		// Arrange: the WPF setup from docs/dependency-injection.md
+		ServiceCollection services = new();
+		services.AddSingletonUndoRedo(options => options
+			.WithMaxStackSize(42)
+			.WithAutoMerge(false)
+			.WithNavigation(true)
+			.WithNavigationTimeout(TimeSpan.FromSeconds(3)));
+
+		// Act
+		using ServiceProvider provider = services.BuildServiceProvider(new ServiceProviderOptions
+		{
+			ValidateOnBuild = true,
+			ValidateScopes = true,
+		});
+		using IServiceScope scope = provider.CreateScope();
+		UndoRedoOptions options = provider.GetRequiredService<UndoRedoOptions>();
+
+		// Assert
+		Assert.AreEqual(42, options.MaxStackSize);
+		Assert.IsFalse(options.AutoMergeCommands);
+		Assert.IsTrue(options.EnableNavigation);
+		Assert.AreEqual(TimeSpan.FromSeconds(3), options.DefaultNavigationTimeout);
+		Assert.AreSame(
+			provider.GetRequiredService<IUndoRedoService>(),
+			scope.ServiceProvider.GetRequiredService<IUndoRedoService>(),
+			"The builder overload should register the service as a singleton");
 	}
 }
