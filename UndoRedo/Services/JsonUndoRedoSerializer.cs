@@ -276,7 +276,9 @@ public class JsonUndoRedoSerializer(JsonSerializerOptions? options = null) : IUn
 		public int CurrentPosition { get; set; }
 		public List<SaveBoundary> SaveBoundaries { get; set; } = [];
 
-		// Data saved before this field existed has no value for it, and meant a clean initial state
+		// Data saved before this field existed has no value for it, and meant a clean initial state. Always
+		// written, so options that skip defaults cannot drop a false and have it load back as true
+		[JsonIgnore(Condition = JsonIgnoreCondition.Never)]
 		public bool InitialStateIsClean { get; set; } = true;
 		public string FormatVersion { get; set; } = string.Empty;
 		public DateTime Timestamp { get; set; }

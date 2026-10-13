@@ -2,6 +2,8 @@
 
 namespace ktsu.UndoRedo;
 
+using System.Text.Json.Serialization;
+
 /// <summary>
 /// Metadata about a change for visualization and navigation purposes
 /// </summary>
@@ -14,7 +16,8 @@ public record ChangeMetadata(
 	ChangeType ChangeType,
 	IReadOnlyList<string> AffectedItems,
 	DateTimeOffset Timestamp,
-	int Size = 1,
+	// Always written: 0 is a CLR default, so options that skip defaults would drop it and it would load back as 1
+	[property: JsonIgnore(Condition = JsonIgnoreCondition.Never)] int Size = 1,
 	IReadOnlyDictionary<string, object>? CustomData = null
 );
 
