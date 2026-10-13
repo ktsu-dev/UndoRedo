@@ -861,6 +861,48 @@ public class SerializationTests
 		Assert.IsTrue(clean.InitialStateIsClean);
 	}
 
+	private static readonly JsonSerializerOptions SkipDefaultsOptions = new()
+	{
+		PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+		DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault,
+		Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() },
+	};
+
+	[TestMethod]
+	public async Task JsonSerializer_SkipDefaultsOptions_PreservesDirtyInitialStateAndZeroSize()
+	{
+		// Arrange: false and 0 are CLR defaults, but load back as true and 1 if they are left out
+		JsonUndoRedoSerializer serializer = new(SkipDefaultsOptions);
+
+		// Act
+		UndoRedoStackState state = await serializer.DeserializeAsync(
+			await serializer.SerializeAsync([new ZeroSizeSerializableCommand()], -1, [], false).ConfigureAwait(false)).ConfigureAwait(false);
+
+		// Assert
+		Assert.IsFalse(state.InitialStateIsClean);
+		Assert.AreEqual(0, state.Commands[0].Metadata.Size);
+	}
+
+	[TestMethod]
+	public async Task UndoRedoService_SaveLoadStateWithSkipDefaultsOptions_KeepsUnsavedChangesAtStartAfterTrimming()
+	{
+		// Arrange
+		UndoRedoService stack = CreateDirtyAtStartAfterTrimming();
+		stack.SetSerializer(new JsonUndoRedoSerializer(SkipDefaultsOptions));
+		byte[] data = await stack.SaveStateAsync().ConfigureAwait(false);
+
+		UndoRedoService reloaded = CreateService();
+		reloaded.SetSerializer(new JsonUndoRedoSerializer(SkipDefaultsOptions));
+
+		// Act
+		bool success = await reloaded.LoadStateAsync(data).ConfigureAwait(false);
+
+		// Assert
+		Assert.IsTrue(success);
+		Assert.AreEqual(-1, reloaded.CurrentPosition);
+		Assert.IsTrue(reloaded.HasUnsavedChanges, "Options that skip defaults must not make the dirty state at -1 look saved");
+	}
+
 	private static readonly DateTimeOffset SavedAt = new(2020, 1, 2, 3, 4, 5, TimeSpan.FromHours(10));
 
 	[TestMethod]
@@ -1064,6 +1106,34 @@ public class SerializationTests
 
 	private sealed class SerializableNonCommand : ISerializableCommand
 	{
+		public string SerializeData() => string.Empty;
+
+		public void DeserializeData(string data)
+		{
+			// Nothing to restore
+		}
+	}
+#pragma warning restore CA1812
+
+#pragma warning disable CA1812 // Instantiated by reflection during deserialization
+	private sealed class ZeroSizeSerializableCommand : BaseCommand, ISerializableCommand
+	{
+		public ZeroSizeSerializableCommand() : base(ChangeType.Modify, ["test"], size: 0)
+		{
+		}
+
+		public override string Description => "Zero-size command";
+
+		public override void Execute()
+		{
+			// Test implementation
+		}
+
+		public override void Undo()
+		{
+			// Test implementation
+		}
+
 		public string SerializeData() => string.Empty;
 
 		public void DeserializeData(string data)
