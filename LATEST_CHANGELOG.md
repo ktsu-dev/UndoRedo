@@ -1,7 +1,6 @@
-## v3.4.0 (minor)
+## v3.4.1 (patch)
 
-Changes since v3.3.0:
+Changes since v3.4.0:
 
-- Add an AddSingletonUndoRedo overload that takes an options builder [minor] ([@Claude](https://github.com/Claude))
-- Skip navigation to contexts the provider reports as invalid [patch] ([@Claude](https://github.com/Claude))
+- Always write InitialStateIsClean and ChangeMetadata.Size [patch] ([@Claude](https://github.com/Claude))
 
