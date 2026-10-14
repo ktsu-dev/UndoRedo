@@ -2,320 +2,320 @@
 
 Changes since v3.4.0:
 
-- Always write InitialStateIsClean and ChangeMetadata.Size [patch] ([@Claude](https://github.com/Claude))
+- Always write InitialStateIsClean and ChangeMetadata.Size [patch] (Claude)
 
 ## v3.4.0 (minor)
 
 Changes since v3.3.0:
 
-- Add an AddSingletonUndoRedo overload that takes an options builder [minor] ([@Claude](https://github.com/Claude))
-- Skip navigation to contexts the provider reports as invalid [patch] ([@Claude](https://github.com/Claude))
+- Add an AddSingletonUndoRedo overload that takes an options builder [minor] (Claude)
+- Skip navigation to contexts the provider reports as invalid [patch] (Claude)
 
 ## v3.3.0 (minor)
 
 Changes since v3.2.0:
 
-- Add DropOldest and CommandsDropped for trimming the history from the start [minor] ([@Claude](https://github.com/Claude))
-- Count only the latest save point as clean in HasUnsavedChanges [patch] ([@Claude](https://github.com/Claude))
+- Add DropOldest and CommandsDropped for trimming the history from the start [minor] (Claude)
+- Count only the latest save point as clean in HasUnsavedChanges [patch] (Claude)
 
 ## v3.2.1 (patch)
 
 Changes since v3.2.0:
 
-- Count only the latest save point as clean in HasUnsavedChanges [patch] ([@Claude](https://github.com/Claude))
+- Count only the latest save point as clean in HasUnsavedChanges [patch] (Claude)
 
 ## v3.2.0 (minor)
 
 Changes since v3.1.0:
 
-- Raise StateChanged after every history change, including Clear, load and restore [minor] ([@Claude](https://github.com/Claude))
+- Raise StateChanged after every history change, including Clear, load and restore [minor] (Claude)
 
 ## v3.1.0 (minor)
 
 Changes since v3.0.0:
 
-- Register AddNavigationProvider as transient so both DI setups pass scope validation [minor] ([@Claude](https://github.com/Claude))
-- Keep the history when a restored state aliases the live Commands and SaveBoundaries [patch] ([@Claude](https://github.com/Claude))
-- Move the placeholder round-trip tests next to the malformed-load test ([@Claude](https://github.com/Claude))
-- Keep a placeholder's saved type, description and data through a save [patch] ([@Claude](https://github.com/Claude))
-- Keep a reloaded command's navigation context and metadata [patch] ([@Claude](https://github.com/Claude))
-- Move CI onto the shared ci-shared.yml pipeline ([@Claude](https://github.com/Claude))
+- Register AddNavigationProvider as transient so both DI setups pass scope validation [minor] (Claude)
+- Keep the history when a restored state aliases the live Commands and SaveBoundaries [patch] (Claude)
+- Move the placeholder round-trip tests next to the malformed-load test (Claude)
+- Keep a placeholder's saved type, description and data through a save [patch] (Claude)
+- Keep a reloaded command's navigation context and metadata [patch] (Claude)
+- Move CI onto the shared ci-shared.yml pipeline (Claude)
 
 ## v3.0.2 (patch)
 
 Changes since v3.0.1:
 
-- Move the placeholder round-trip tests next to the malformed-load test ([@Claude](https://github.com/Claude))
-- Keep a placeholder's saved type, description and data through a save [patch] ([@Claude](https://github.com/Claude))
-- Keep a reloaded command's navigation context and metadata [patch] ([@Claude](https://github.com/Claude))
+- Move the placeholder round-trip tests next to the malformed-load test (Claude)
+- Keep a placeholder's saved type, description and data through a save [patch] (Claude)
+- Keep a reloaded command's navigation context and metadata [patch] (Claude)
 
 ## v3.0.2-pre.1 (prerelease)
 
 Changes since v3.0.1:
 
-- Bump Polyfill from 11.4.2 to 11.4.3 ([@dependabot[bot]](https://github.com/dependabot[bot]))
-- Bump Polyfill from 11.4.1 to 11.4.2 ([@dependabot[bot]](https://github.com/dependabot[bot]))
+- Bump Polyfill from 11.4.2 to 11.4.3 (dependabot[bot])
+- Bump Polyfill from 11.4.1 to 11.4.2 (dependabot[bot])
 
 ## v3.0.1 (patch)
 
 Changes since v3.0.0:
 
-- Move CI onto the shared ci-shared.yml pipeline ([@Claude](https://github.com/Claude))
+- Move CI onto the shared ci-shared.yml pipeline (Claude)
 
 ## v3.0.0 (major)
 
 Changes since v2.0.0:
 
-- Keep a trimmed stack dirty at -1 through save, load, and restore [major] ([@Claude](https://github.com/Claude))
-- Keep save-boundary timestamps through load and restore [minor] ([@Claude](https://github.com/Claude))
-- Report a throwing or open-generic command constructor as a failed load [patch] ([@Claude](https://github.com/Claude))
-- Return a snapshot from GetCommandsToUndo instead of a live query [patch] ([@Claude](https://github.com/Claude))
-- Merge main into claude/undoredo-104-navigation-timeout ([@Claude](https://github.com/Claude))
-- Enumerate a CompositeCommand's commands once [patch] ([@Claude](https://github.com/Claude))
-- Treat an out-of-range navigation timeout as no timeout instead of throwing after undo/redo [patch] ([@Claude](https://github.com/Claude))
-- Clamp GetCommandsInRange against the remaining commands so a large count cannot overflow [patch] ([@Claude](https://github.com/Claude))
-- Merge remote-tracking branch 'origin/main' into claude/undoredo-88-stale-save-boundary ([@matt-edmondson](https://github.com/matt-edmondson))
-- Rebuild a saved command whose SerializeData() returned an empty string ([@Claude](https://github.com/Claude))
-- fix: resolve a held save boundary to its live position before undoing to it [patch] ([@matt-edmondson](https://github.com/matt-edmondson))
-- fix: stop a navigation failure from surfacing after undo/redo is applied [patch] ([@matt-edmondson](https://github.com/matt-edmondson))
-- Merge remote-tracking branch 'origin/main' into claude/undoredo-93-bad-command-type ([@Claude](https://github.com/Claude))
-- fix: report every unloadable saved command as a failed load [patch] ([@Claude](https://github.com/Claude))
-- fix: show the window around the current position in GetChangeVisualizations [patch] ([@Claude](https://github.com/Claude))
-- fix: reject saved state with save boundaries outside the commands [patch] ([@Claude](https://github.com/Claude))
-- fix: reject malformed saved state without losing the live history [patch] ([@Claude](https://github.com/Claude))
-- fix: make CompositeCommand.Undo all-or-nothing [patch] ([@Claude](https://github.com/Claude))
-- fix: stop auto-merge folding an edit into a saved command [patch] ([@Claude](https://github.com/Claude))
-- test: group the unsaved-changes tests with the stack-size tests [patch] ([@Claude](https://github.com/Claude))
-- fix: keep command metadata when loading saved state [patch] ([@Claude](https://github.com/Claude))
-- fix: stop treating position -1 as clean after trimming or saving [patch] ([@Claude](https://github.com/Claude))
-- fix: move the stack position only after Undo/Redo succeeds [patch] ([@Claude](https://github.com/Claude))
-- test: assert save boundary count with Assert.HasCount [patch] ([@Claude](https://github.com/Claude))
-- fix: report a command with no parameterless constructor as a load failure [patch] ([@Claude](https://github.com/Claude))
-- fix: make the non-merge path in Execute() exception-safe [patch] ([@Claude](https://github.com/Claude))
+- Keep a trimmed stack dirty at -1 through save, load, and restore [major] (Claude)
+- Keep save-boundary timestamps through load and restore [minor] (Claude)
+- Report a throwing or open-generic command constructor as a failed load [patch] (Claude)
+- Return a snapshot from GetCommandsToUndo instead of a live query [patch] (Claude)
+- Merge main into claude/undoredo-104-navigation-timeout (Claude)
+- Enumerate a CompositeCommand's commands once [patch] (Claude)
+- Treat an out-of-range navigation timeout as no timeout instead of throwing after undo/redo [patch] (Claude)
+- Clamp GetCommandsInRange against the remaining commands so a large count cannot overflow [patch] (Claude)
+- Merge remote-tracking branch 'origin/main' into claude/undoredo-88-stale-save-boundary (matt-edmondson)
+- Rebuild a saved command whose SerializeData() returned an empty string (Claude)
+- fix: resolve a held save boundary to its live position before undoing to it [patch] (matt-edmondson)
+- fix: stop a navigation failure from surfacing after undo/redo is applied [patch] (matt-edmondson)
+- Merge remote-tracking branch 'origin/main' into claude/undoredo-93-bad-command-type (Claude)
+- fix: report every unloadable saved command as a failed load [patch] (Claude)
+- fix: show the window around the current position in GetChangeVisualizations [patch] (Claude)
+- fix: reject saved state with save boundaries outside the commands [patch] (Claude)
+- fix: reject malformed saved state without losing the live history [patch] (Claude)
+- fix: make CompositeCommand.Undo all-or-nothing [patch] (Claude)
+- fix: stop auto-merge folding an edit into a saved command [patch] (Claude)
+- test: group the unsaved-changes tests with the stack-size tests [patch] (Claude)
+- fix: keep command metadata when loading saved state [patch] (Claude)
+- fix: stop treating position -1 as clean after trimming or saving [patch] (Claude)
+- fix: move the stack position only after Undo/Redo succeeds [patch] (Claude)
+- test: assert save boundary count with Assert.HasCount [patch] (Claude)
+- fix: report a command with no parameterless constructor as a load failure [patch] (Claude)
+- fix: make the non-merge path in Execute() exception-safe [patch] (Claude)
 
 ## v2.1.0 (minor)
 
 Changes since v2.0.0:
 
-- Keep save-boundary timestamps through load and restore [minor] ([@Claude](https://github.com/Claude))
-- Report a throwing or open-generic command constructor as a failed load [patch] ([@Claude](https://github.com/Claude))
-- Return a snapshot from GetCommandsToUndo instead of a live query [patch] ([@Claude](https://github.com/Claude))
-- Merge main into claude/undoredo-104-navigation-timeout ([@Claude](https://github.com/Claude))
-- Enumerate a CompositeCommand's commands once [patch] ([@Claude](https://github.com/Claude))
-- Treat an out-of-range navigation timeout as no timeout instead of throwing after undo/redo [patch] ([@Claude](https://github.com/Claude))
-- Clamp GetCommandsInRange against the remaining commands so a large count cannot overflow [patch] ([@Claude](https://github.com/Claude))
-- Merge remote-tracking branch 'origin/main' into claude/undoredo-88-stale-save-boundary ([@matt-edmondson](https://github.com/matt-edmondson))
-- Rebuild a saved command whose SerializeData() returned an empty string ([@Claude](https://github.com/Claude))
-- fix: resolve a held save boundary to its live position before undoing to it [patch] ([@matt-edmondson](https://github.com/matt-edmondson))
-- fix: stop a navigation failure from surfacing after undo/redo is applied [patch] ([@matt-edmondson](https://github.com/matt-edmondson))
-- Merge remote-tracking branch 'origin/main' into claude/undoredo-93-bad-command-type ([@Claude](https://github.com/Claude))
-- fix: report every unloadable saved command as a failed load [patch] ([@Claude](https://github.com/Claude))
-- fix: show the window around the current position in GetChangeVisualizations [patch] ([@Claude](https://github.com/Claude))
-- fix: reject saved state with save boundaries outside the commands [patch] ([@Claude](https://github.com/Claude))
-- fix: reject malformed saved state without losing the live history [patch] ([@Claude](https://github.com/Claude))
-- fix: make CompositeCommand.Undo all-or-nothing [patch] ([@Claude](https://github.com/Claude))
-- fix: stop auto-merge folding an edit into a saved command [patch] ([@Claude](https://github.com/Claude))
-- test: group the unsaved-changes tests with the stack-size tests [patch] ([@Claude](https://github.com/Claude))
-- fix: keep command metadata when loading saved state [patch] ([@Claude](https://github.com/Claude))
-- fix: stop treating position -1 as clean after trimming or saving [patch] ([@Claude](https://github.com/Claude))
-- fix: move the stack position only after Undo/Redo succeeds [patch] ([@Claude](https://github.com/Claude))
-- test: assert save boundary count with Assert.HasCount [patch] ([@Claude](https://github.com/Claude))
-- fix: report a command with no parameterless constructor as a load failure [patch] ([@Claude](https://github.com/Claude))
-- fix: make the non-merge path in Execute() exception-safe [patch] ([@Claude](https://github.com/Claude))
+- Keep save-boundary timestamps through load and restore [minor] (Claude)
+- Report a throwing or open-generic command constructor as a failed load [patch] (Claude)
+- Return a snapshot from GetCommandsToUndo instead of a live query [patch] (Claude)
+- Merge main into claude/undoredo-104-navigation-timeout (Claude)
+- Enumerate a CompositeCommand's commands once [patch] (Claude)
+- Treat an out-of-range navigation timeout as no timeout instead of throwing after undo/redo [patch] (Claude)
+- Clamp GetCommandsInRange against the remaining commands so a large count cannot overflow [patch] (Claude)
+- Merge remote-tracking branch 'origin/main' into claude/undoredo-88-stale-save-boundary (matt-edmondson)
+- Rebuild a saved command whose SerializeData() returned an empty string (Claude)
+- fix: resolve a held save boundary to its live position before undoing to it [patch] (matt-edmondson)
+- fix: stop a navigation failure from surfacing after undo/redo is applied [patch] (matt-edmondson)
+- Merge remote-tracking branch 'origin/main' into claude/undoredo-93-bad-command-type (Claude)
+- fix: report every unloadable saved command as a failed load [patch] (Claude)
+- fix: show the window around the current position in GetChangeVisualizations [patch] (Claude)
+- fix: reject saved state with save boundaries outside the commands [patch] (Claude)
+- fix: reject malformed saved state without losing the live history [patch] (Claude)
+- fix: make CompositeCommand.Undo all-or-nothing [patch] (Claude)
+- fix: stop auto-merge folding an edit into a saved command [patch] (Claude)
+- test: group the unsaved-changes tests with the stack-size tests [patch] (Claude)
+- fix: keep command metadata when loading saved state [patch] (Claude)
+- fix: stop treating position -1 as clean after trimming or saving [patch] (Claude)
+- fix: move the stack position only after Undo/Redo succeeds [patch] (Claude)
+- test: assert save boundary count with Assert.HasCount [patch] (Claude)
+- fix: report a command with no parameterless constructor as a load failure [patch] (Claude)
+- fix: make the non-merge path in Execute() exception-safe [patch] (Claude)
 
 ## v2.0.9 (patch)
 
 Changes since v2.0.8:
 
-- Enumerate a CompositeCommand's commands once [patch] ([@Claude](https://github.com/Claude))
-- Clamp GetCommandsInRange against the remaining commands so a large count cannot overflow [patch] ([@Claude](https://github.com/Claude))
-- Merge remote-tracking branch 'origin/main' into claude/undoredo-88-stale-save-boundary ([@matt-edmondson](https://github.com/matt-edmondson))
-- fix: resolve a held save boundary to its live position before undoing to it [patch] ([@matt-edmondson](https://github.com/matt-edmondson))
+- Enumerate a CompositeCommand's commands once [patch] (Claude)
+- Clamp GetCommandsInRange against the remaining commands so a large count cannot overflow [patch] (Claude)
+- Merge remote-tracking branch 'origin/main' into claude/undoredo-88-stale-save-boundary (matt-edmondson)
+- fix: resolve a held save boundary to its live position before undoing to it [patch] (matt-edmondson)
 
 ## v2.0.8 (patch)
 
 Changes since v2.0.7:
 
-- Rebuild a saved command whose SerializeData() returned an empty string ([@Claude](https://github.com/Claude))
-- fix: stop a navigation failure from surfacing after undo/redo is applied [patch] ([@matt-edmondson](https://github.com/matt-edmondson))
+- Rebuild a saved command whose SerializeData() returned an empty string (Claude)
+- fix: stop a navigation failure from surfacing after undo/redo is applied [patch] (matt-edmondson)
 
 ## v2.0.7 (patch)
 
 Changes since v2.0.6:
 
-- Merge remote-tracking branch 'origin/main' into claude/undoredo-93-bad-command-type ([@Claude](https://github.com/Claude))
-- fix: report every unloadable saved command as a failed load [patch] ([@Claude](https://github.com/Claude))
+- Merge remote-tracking branch 'origin/main' into claude/undoredo-93-bad-command-type (Claude)
+- fix: report every unloadable saved command as a failed load [patch] (Claude)
 
 ## v2.0.6 (patch)
 
 Changes since v2.0.5:
 
-- fix: show the window around the current position in GetChangeVisualizations [patch] ([@Claude](https://github.com/Claude))
-- fix: reject saved state with save boundaries outside the commands [patch] ([@Claude](https://github.com/Claude))
+- fix: show the window around the current position in GetChangeVisualizations [patch] (Claude)
+- fix: reject saved state with save boundaries outside the commands [patch] (Claude)
 
 ## v2.0.5 (patch)
 
 Changes since v2.0.4:
 
-- fix: reject malformed saved state without losing the live history [patch] ([@Claude](https://github.com/Claude))
-- fix: make CompositeCommand.Undo all-or-nothing [patch] ([@Claude](https://github.com/Claude))
-- fix: stop auto-merge folding an edit into a saved command [patch] ([@Claude](https://github.com/Claude))
+- fix: reject malformed saved state without losing the live history [patch] (Claude)
+- fix: make CompositeCommand.Undo all-or-nothing [patch] (Claude)
+- fix: stop auto-merge folding an edit into a saved command [patch] (Claude)
 
 ## v2.0.4 (patch)
 
 Changes since v2.0.3:
 
-- test: group the unsaved-changes tests with the stack-size tests [patch] ([@Claude](https://github.com/Claude))
-- fix: keep command metadata when loading saved state [patch] ([@Claude](https://github.com/Claude))
-- fix: stop treating position -1 as clean after trimming or saving [patch] ([@Claude](https://github.com/Claude))
-- fix: move the stack position only after Undo/Redo succeeds [patch] ([@Claude](https://github.com/Claude))
+- test: group the unsaved-changes tests with the stack-size tests [patch] (Claude)
+- fix: keep command metadata when loading saved state [patch] (Claude)
+- fix: stop treating position -1 as clean after trimming or saving [patch] (Claude)
+- fix: move the stack position only after Undo/Redo succeeds [patch] (Claude)
 
 ## v2.0.3 (patch)
 
 Changes since v2.0.2:
 
-- Bump the ktsu group with 9 updates ([@dependabot[bot]](https://github.com/dependabot[bot]))
+- Bump the ktsu group with 9 updates (dependabot[bot])
 
 ## v2.0.2 (patch)
 
 Changes since v2.0.1:
 
-- test: assert save boundary count with Assert.HasCount [patch] ([@Claude](https://github.com/Claude))
-- fix: report a command with no parameterless constructor as a load failure [patch] ([@Claude](https://github.com/Claude))
-- fix: make the non-merge path in Execute() exception-safe [patch] ([@Claude](https://github.com/Claude))
+- test: assert save boundary count with Assert.HasCount [patch] (Claude)
+- fix: report a command with no parameterless constructor as a load failure [patch] (Claude)
+- fix: make the non-merge path in Execute() exception-safe [patch] (Claude)
 
 ## v2.0.1 (patch)
 
 Changes since v2.0.0:
 
-- Bump the ktsu group with 9 updates ([@dependabot[bot]](https://github.com/dependabot[bot]))
+- Bump the ktsu group with 9 updates (dependabot[bot])
 
 ## v2.0.0 (major)
 
 Changes since v1.0.0:
 
-- Merge remote-tracking branch 'origin/main' into rename/retire-core-package-id ([@Claude](https://github.com/Claude))
-- [major] Retire .Core from the published package ID ([@Claude](https://github.com/Claude))
-- test: cover the swallowed restore failure in the merge path ([@Claude](https://github.com/Claude))
-- fix: make the auto-merge path in Execute() exception-safe [patch] ([@Claude](https://github.com/Claude))
-- fix: make UndoRedoStackState.CanUndo agree with the live CanUndo [patch] ([@Claude](https://github.com/Claude))
-- Gate Dependabot auto-merge on CI actually being green ([@Claude](https://github.com/Claude))
-- ci: adopt the consolidated .NET workflow [patch] ([@Claude](https://github.com/Claude))
-- ci: make the SonarQube quality gate opt in [patch] ([@matt-edmondson](https://github.com/matt-edmondson))
-- ci: adopt the unified dotnet workflow [patch] ([@matt-edmondson](https://github.com/matt-edmondson))
-- chore: store icon.png in LFS as .gitattributes declares ([@matt-edmondson](https://github.com/matt-edmondson))
-- docs: scope build badge to the default branch ([@matt-edmondson](https://github.com/matt-edmondson))
-- docs: correct README, DESCRIPTION and TAGS metadata ([@matt-edmondson](https://github.com/matt-edmondson))
-- Fix build errors from ktsu.Sdk analyzer updates (NU1506 duplicate PackageVersions, IDE0073 headers, IDE0055 line endings, KTSU0001/0002/0007) [patch] ([@matt-edmondson](https://github.com/matt-edmondson))
-- Sync .github\workflows\dotnet.yml ([@KtsuTools](https://github.com/KtsuTools))
-- Sync .runsettings ([@KtsuTools](https://github.com/KtsuTools))
-- Sync .editorconfig ([@KtsuTools](https://github.com/KtsuTools))
-- Sync .gitattributes ([@KtsuTools](https://github.com/KtsuTools))
-- Sync global.json ([@KtsuTools](https://github.com/KtsuTools))
-- Sync .github\workflows\dotnet.yml ([@KtsuTools](https://github.com/KtsuTools))
-- chore: trim central package versions for UndoRedo.Core ([@matt-edmondson](https://github.com/matt-edmondson))
-- Sync .github\workflows\dotnet.yml ([@KtsuTools](https://github.com/KtsuTools))
-- Remove legacy build scripts ([@matt-edmondson](https://github.com/matt-edmondson))
-- Remove obsolete .project.json file from .specstory directory ([@matt-edmondson](https://github.com/matt-edmondson))
-- Refactor namespaces and update documentation for consistency across the UndoRedo library ([@matt-edmondson](https://github.com/matt-edmondson))
-- Enhance test assertions with descriptive messages for clarity ([@matt-edmondson](https://github.com/matt-edmondson))
-- Remove .github\workflows\project.yml ([@matt-edmondson](https://github.com/matt-edmondson))
-- Migrate to dotnet 10 ([@matt-edmondson](https://github.com/matt-edmondson))
-- Refactor argument validation: Introduce Guard class for null checks and update package versions ([@matt-edmondson](https://github.com/matt-edmondson))
-- Update documentation files: removed outdated history file, added CLAUDE.md for project guidance ([@matt-edmondson](https://github.com/matt-edmondson))
-- Refactor project files to standardize SDK usage and update package references ([@matt-edmondson](https://github.com/matt-edmondson))
-- Update Microsoft.Testing.Extensions.CodeCoverage and MSTest packages to latest versions ([@matt-edmondson](https://github.com/matt-edmondson))
-- Update project configuration and metadata ([@matt-edmondson](https://github.com/matt-edmondson))
-- Update project documentation and enhance serialization features ([@matt-edmondson](https://github.com/matt-edmondson))
-- Fix issues in UndoRedo functionality and tests ([@matt-edmondson](https://github.com/matt-edmondson))
-- Add script to automate winget manifest updates ([@matt-edmondson](https://github.com/matt-edmondson))
-- Refactor package management and improve error handling in CompositeCommand ([@matt-edmondson](https://github.com/matt-edmondson))
-- Update package references, improve project structure, and enhance documentation ([@matt-edmondson](https://github.com/matt-edmondson))
-- Refactor JsonUndoRedoSerializer and UndoRedoService error handling ([@matt-edmondson](https://github.com/matt-edmondson))
-- Enhance JsonUndoRedoSerializer and UndoRedoService functionality ([@matt-edmondson](https://github.com/matt-edmondson))
-- Update package versions, remove unused projects, and enhance documentation ([@matt-edmondson](https://github.com/matt-edmondson))
-- Add serialization support for undo/redo stack state ([@matt-edmondson](https://github.com/matt-edmondson))
-- Update project configuration and CI/CD settings: modify .editorconfig for variable declaration preferences, enhance .gitignore for SpecStory files, adjust .runsettings for test parallelization, update package versions in Directory.Packages.props, and refine GitHub Actions workflow for better release management and SonarQube integration. ([@matt-edmondson](https://github.com/matt-edmondson))
+- Merge remote-tracking branch 'origin/main' into rename/retire-core-package-id (Claude)
+- [major] Retire .Core from the published package ID (Claude)
+- test: cover the swallowed restore failure in the merge path (Claude)
+- fix: make the auto-merge path in Execute() exception-safe [patch] (Claude)
+- fix: make UndoRedoStackState.CanUndo agree with the live CanUndo [patch] (Claude)
+- Gate Dependabot auto-merge on CI actually being green (Claude)
+- ci: adopt the consolidated .NET workflow [patch] (Claude)
+- ci: make the SonarQube quality gate opt in [patch] (matt-edmondson)
+- ci: adopt the unified dotnet workflow [patch] (matt-edmondson)
+- chore: store icon.png in LFS as .gitattributes declares (matt-edmondson)
+- docs: scope build badge to the default branch (matt-edmondson)
+- docs: correct README, DESCRIPTION and TAGS metadata (matt-edmondson)
+- Fix build errors from ktsu.Sdk analyzer updates (NU1506 duplicate PackageVersions, IDE0073 headers, IDE0055 line endings, KTSU0001/0002/0007) [patch] (matt-edmondson)
+- Sync .github\workflows\dotnet.yml (KtsuTools)
+- Sync .runsettings (KtsuTools)
+- Sync .editorconfig (KtsuTools)
+- Sync .gitattributes (KtsuTools)
+- Sync global.json (KtsuTools)
+- Sync .github\workflows\dotnet.yml (KtsuTools)
+- chore: trim central package versions for UndoRedo.Core (matt-edmondson)
+- Sync .github\workflows\dotnet.yml (KtsuTools)
+- Remove legacy build scripts (matt-edmondson)
+- Remove obsolete .project.json file from .specstory directory (matt-edmondson)
+- Refactor namespaces and update documentation for consistency across the UndoRedo library (matt-edmondson)
+- Enhance test assertions with descriptive messages for clarity (matt-edmondson)
+- Remove .github\workflows\project.yml (matt-edmondson)
+- Migrate to dotnet 10 (matt-edmondson)
+- Refactor argument validation: Introduce Guard class for null checks and update package versions (matt-edmondson)
+- Update documentation files: removed outdated history file, added CLAUDE.md for project guidance (matt-edmondson)
+- Refactor project files to standardize SDK usage and update package references (matt-edmondson)
+- Update Microsoft.Testing.Extensions.CodeCoverage and MSTest packages to latest versions (matt-edmondson)
+- Update project configuration and metadata (matt-edmondson)
+- Update project documentation and enhance serialization features (matt-edmondson)
+- Fix issues in UndoRedo functionality and tests (matt-edmondson)
+- Add script to automate winget manifest updates (matt-edmondson)
+- Refactor package management and improve error handling in CompositeCommand (matt-edmondson)
+- Update package references, improve project structure, and enhance documentation (matt-edmondson)
+- Refactor JsonUndoRedoSerializer and UndoRedoService error handling (matt-edmondson)
+- Enhance JsonUndoRedoSerializer and UndoRedoService functionality (matt-edmondson)
+- Update package versions, remove unused projects, and enhance documentation (matt-edmondson)
+- Add serialization support for undo/redo stack state (matt-edmondson)
+- Update project configuration and CI/CD settings: modify .editorconfig for variable declaration preferences, enhance .gitignore for SpecStory files, adjust .runsettings for test parallelization, update package versions in Directory.Packages.props, and refine GitHub Actions workflow for better release management and SonarQube integration. (matt-edmondson)
 
 ## v1.1.4 (patch)
 
 Changes since v1.1.3:
 
-- test: cover the swallowed restore failure in the merge path ([@Claude](https://github.com/Claude))
-- fix: make the auto-merge path in Execute() exception-safe [patch] ([@Claude](https://github.com/Claude))
-- fix: make UndoRedoStackState.CanUndo agree with the live CanUndo [patch] ([@Claude](https://github.com/Claude))
+- test: cover the swallowed restore failure in the merge path (Claude)
+- fix: make the auto-merge path in Execute() exception-safe [patch] (Claude)
+- fix: make UndoRedoStackState.CanUndo agree with the live CanUndo [patch] (Claude)
 
 ## v1.1.3 (patch)
 
 Changes since v1.1.2:
 
-- Bump MSTest.Sdk from 4.4.0 to 4.4.1 ([@dependabot[bot]](https://github.com/dependabot[bot]))
-- Bump the ktsu group with 9 updates ([@dependabot[bot]](https://github.com/dependabot[bot]))
+- Bump MSTest.Sdk from 4.4.0 to 4.4.1 (dependabot[bot])
+- Bump the ktsu group with 9 updates (dependabot[bot])
 
 ## v1.1.2 (patch)
 
 Changes since v1.1.1:
 
-- Gate Dependabot auto-merge on CI actually being green ([@Claude](https://github.com/Claude))
+- Gate Dependabot auto-merge on CI actually being green (Claude)
 
 ## v1.1.1 (patch)
 
 Changes since v1.1.0:
 
-- ci: adopt the consolidated .NET workflow [patch] ([@Claude](https://github.com/Claude))
+- ci: adopt the consolidated .NET workflow [patch] (Claude)
 
 ## v1.1.0 (minor)
 
 Changes since v1.0.0:
 
-- ci: make the SonarQube quality gate opt in [patch] ([@matt-edmondson](https://github.com/matt-edmondson))
-- ci: adopt the unified dotnet workflow [patch] ([@matt-edmondson](https://github.com/matt-edmondson))
-- chore: store icon.png in LFS as .gitattributes declares ([@matt-edmondson](https://github.com/matt-edmondson))
-- docs: scope build badge to the default branch ([@matt-edmondson](https://github.com/matt-edmondson))
-- docs: correct README, DESCRIPTION and TAGS metadata ([@matt-edmondson](https://github.com/matt-edmondson))
-- Fix build errors from ktsu.Sdk analyzer updates (NU1506 duplicate PackageVersions, IDE0073 headers, IDE0055 line endings, KTSU0001/0002/0007) [patch] ([@matt-edmondson](https://github.com/matt-edmondson))
-- Sync .github\workflows\dotnet.yml ([@KtsuTools](https://github.com/KtsuTools))
-- Sync .runsettings ([@KtsuTools](https://github.com/KtsuTools))
-- Sync .editorconfig ([@KtsuTools](https://github.com/KtsuTools))
-- Sync .gitattributes ([@KtsuTools](https://github.com/KtsuTools))
-- Sync global.json ([@KtsuTools](https://github.com/KtsuTools))
-- Sync .github\workflows\dotnet.yml ([@KtsuTools](https://github.com/KtsuTools))
-- chore: trim central package versions for UndoRedo.Core ([@matt-edmondson](https://github.com/matt-edmondson))
-- Sync .github\workflows\dotnet.yml ([@KtsuTools](https://github.com/KtsuTools))
-- Remove legacy build scripts ([@matt-edmondson](https://github.com/matt-edmondson))
-- Remove obsolete .project.json file from .specstory directory ([@matt-edmondson](https://github.com/matt-edmondson))
-- Refactor namespaces and update documentation for consistency across the UndoRedo library ([@matt-edmondson](https://github.com/matt-edmondson))
-- Enhance test assertions with descriptive messages for clarity ([@matt-edmondson](https://github.com/matt-edmondson))
-- Remove .github\workflows\project.yml ([@matt-edmondson](https://github.com/matt-edmondson))
-- Migrate to dotnet 10 ([@matt-edmondson](https://github.com/matt-edmondson))
-- Refactor argument validation: Introduce Guard class for null checks and update package versions ([@matt-edmondson](https://github.com/matt-edmondson))
-- Update documentation files: removed outdated history file, added CLAUDE.md for project guidance ([@matt-edmondson](https://github.com/matt-edmondson))
-- Refactor project files to standardize SDK usage and update package references ([@matt-edmondson](https://github.com/matt-edmondson))
-- Update Microsoft.Testing.Extensions.CodeCoverage and MSTest packages to latest versions ([@matt-edmondson](https://github.com/matt-edmondson))
-- Update project configuration and metadata ([@matt-edmondson](https://github.com/matt-edmondson))
-- Update project documentation and enhance serialization features ([@matt-edmondson](https://github.com/matt-edmondson))
-- Fix issues in UndoRedo functionality and tests ([@matt-edmondson](https://github.com/matt-edmondson))
-- Add script to automate winget manifest updates ([@matt-edmondson](https://github.com/matt-edmondson))
-- Refactor package management and improve error handling in CompositeCommand ([@matt-edmondson](https://github.com/matt-edmondson))
-- Update package references, improve project structure, and enhance documentation ([@matt-edmondson](https://github.com/matt-edmondson))
-- Refactor JsonUndoRedoSerializer and UndoRedoService error handling ([@matt-edmondson](https://github.com/matt-edmondson))
-- Enhance JsonUndoRedoSerializer and UndoRedoService functionality ([@matt-edmondson](https://github.com/matt-edmondson))
-- Update package versions, remove unused projects, and enhance documentation ([@matt-edmondson](https://github.com/matt-edmondson))
-- Add serialization support for undo/redo stack state ([@matt-edmondson](https://github.com/matt-edmondson))
-- Update project configuration and CI/CD settings: modify .editorconfig for variable declaration preferences, enhance .gitignore for SpecStory files, adjust .runsettings for test parallelization, update package versions in Directory.Packages.props, and refine GitHub Actions workflow for better release management and SonarQube integration. ([@matt-edmondson](https://github.com/matt-edmondson))
+- ci: make the SonarQube quality gate opt in [patch] (matt-edmondson)
+- ci: adopt the unified dotnet workflow [patch] (matt-edmondson)
+- chore: store icon.png in LFS as .gitattributes declares (matt-edmondson)
+- docs: scope build badge to the default branch (matt-edmondson)
+- docs: correct README, DESCRIPTION and TAGS metadata (matt-edmondson)
+- Fix build errors from ktsu.Sdk analyzer updates (NU1506 duplicate PackageVersions, IDE0073 headers, IDE0055 line endings, KTSU0001/0002/0007) [patch] (matt-edmondson)
+- Sync .github\workflows\dotnet.yml (KtsuTools)
+- Sync .runsettings (KtsuTools)
+- Sync .editorconfig (KtsuTools)
+- Sync .gitattributes (KtsuTools)
+- Sync global.json (KtsuTools)
+- Sync .github\workflows\dotnet.yml (KtsuTools)
+- chore: trim central package versions for UndoRedo.Core (matt-edmondson)
+- Sync .github\workflows\dotnet.yml (KtsuTools)
+- Remove legacy build scripts (matt-edmondson)
+- Remove obsolete .project.json file from .specstory directory (matt-edmondson)
+- Refactor namespaces and update documentation for consistency across the UndoRedo library (matt-edmondson)
+- Enhance test assertions with descriptive messages for clarity (matt-edmondson)
+- Remove .github\workflows\project.yml (matt-edmondson)
+- Migrate to dotnet 10 (matt-edmondson)
+- Refactor argument validation: Introduce Guard class for null checks and update package versions (matt-edmondson)
+- Update documentation files: removed outdated history file, added CLAUDE.md for project guidance (matt-edmondson)
+- Refactor project files to standardize SDK usage and update package references (matt-edmondson)
+- Update Microsoft.Testing.Extensions.CodeCoverage and MSTest packages to latest versions (matt-edmondson)
+- Update project configuration and metadata (matt-edmondson)
+- Update project documentation and enhance serialization features (matt-edmondson)
+- Fix issues in UndoRedo functionality and tests (matt-edmondson)
+- Add script to automate winget manifest updates (matt-edmondson)
+- Refactor package management and improve error handling in CompositeCommand (matt-edmondson)
+- Update package references, improve project structure, and enhance documentation (matt-edmondson)
+- Refactor JsonUndoRedoSerializer and UndoRedoService error handling (matt-edmondson)
+- Enhance JsonUndoRedoSerializer and UndoRedoService functionality (matt-edmondson)
+- Update package versions, remove unused projects, and enhance documentation (matt-edmondson)
+- Add serialization support for undo/redo stack state (matt-edmondson)
+- Update project configuration and CI/CD settings: modify .editorconfig for variable declaration preferences, enhance .gitignore for SpecStory files, adjust .runsettings for test parallelization, update package versions in Directory.Packages.props, and refine GitHub Actions workflow for better release management and SonarQube integration. (matt-edmondson)
 
 ## v1.0.21 (patch)
 
 Changes since v1.0.20:
 
-- Bump Polyfill from 11.2.0 to 11.3.0 ([@dependabot[bot]](https://github.com/dependabot[bot]))
+- Bump Polyfill from 11.2.0 to 11.3.0 (dependabot[bot])
 
 ## v1.0.20 (patch)
 
 Changes since v1.0.19:
 
-- Bump the system group with 1 update ([@dependabot[bot]](https://github.com/dependabot[bot]))
-- Bump the microsoft group with 2 updates ([@dependabot[bot]](https://github.com/dependabot[bot]))
+- Bump the system group with 1 update (dependabot[bot])
+- Bump the microsoft group with 2 updates (dependabot[bot])
 
 ## v1.0.19 (patch)
 
@@ -325,232 +325,232 @@ No significant changes detected since v1.0.18.
 
 Changes since v1.0.17:
 
-- ci: make the SonarQube quality gate opt in [patch] ([@matt-edmondson](https://github.com/matt-edmondson))
-- ci: adopt the unified dotnet workflow [patch] ([@matt-edmondson](https://github.com/matt-edmondson))
+- ci: make the SonarQube quality gate opt in [patch] (matt-edmondson)
+- ci: adopt the unified dotnet workflow [patch] (matt-edmondson)
 
 ## v1.0.17 (patch)
 
 Changes since v1.0.16:
 
-- Bump the ktsu group with 9 updates ([@dependabot[bot]](https://github.com/dependabot[bot]))
+- Bump the ktsu group with 9 updates (dependabot[bot])
 
 ## v1.0.16 (patch)
 
 Changes since v1.0.15:
 
-- Bump the ktsu group with 9 updates ([@dependabot[bot]](https://github.com/dependabot[bot]))
+- Bump the ktsu group with 9 updates (dependabot[bot])
 
 ## v1.0.15 (patch)
 
 Changes since v1.0.14:
 
-- chore: store icon.png in LFS as .gitattributes declares ([@matt-edmondson](https://github.com/matt-edmondson))
-- docs: scope build badge to the default branch ([@matt-edmondson](https://github.com/matt-edmondson))
-- docs: correct README, DESCRIPTION and TAGS metadata ([@matt-edmondson](https://github.com/matt-edmondson))
+- chore: store icon.png in LFS as .gitattributes declares (matt-edmondson)
+- docs: scope build badge to the default branch (matt-edmondson)
+- docs: correct README, DESCRIPTION and TAGS metadata (matt-edmondson)
 
 ## v1.0.14 (patch)
 
 Changes since v1.0.13:
 
-- Fix build errors from ktsu.Sdk analyzer updates (NU1506 duplicate PackageVersions, IDE0073 headers, IDE0055 line endings, KTSU0001/0002/0007) [patch] ([@matt-edmondson](https://github.com/matt-edmondson))
-- Sync .github\workflows\dotnet.yml ([@KtsuTools](https://github.com/KtsuTools))
-- Sync .runsettings ([@KtsuTools](https://github.com/KtsuTools))
-- Sync .editorconfig ([@KtsuTools](https://github.com/KtsuTools))
-- Sync .gitattributes ([@KtsuTools](https://github.com/KtsuTools))
-- Sync global.json ([@KtsuTools](https://github.com/KtsuTools))
-- Sync .github\workflows\dotnet.yml ([@KtsuTools](https://github.com/KtsuTools))
+- Fix build errors from ktsu.Sdk analyzer updates (NU1506 duplicate PackageVersions, IDE0073 headers, IDE0055 line endings, KTSU0001/0002/0007) [patch] (matt-edmondson)
+- Sync .github\workflows\dotnet.yml (KtsuTools)
+- Sync .runsettings (KtsuTools)
+- Sync .editorconfig (KtsuTools)
+- Sync .gitattributes (KtsuTools)
+- Sync global.json (KtsuTools)
+- Sync .github\workflows\dotnet.yml (KtsuTools)
 
 ## v1.0.13 (patch)
 
 Changes since v1.0.12:
 
-- Bump the ktsu group with 8 updates ([@dependabot[bot]](https://github.com/dependabot[bot]))
+- Bump the ktsu group with 8 updates (dependabot[bot])
 
 ## v1.0.12 (patch)
 
 Changes since v1.0.11:
 
-- Bump Polyfill from 10.11.1 to 10.11.2 ([@dependabot[bot]](https://github.com/dependabot[bot]))
+- Bump Polyfill from 10.11.1 to 10.11.2 (dependabot[bot])
 
 ## v1.0.11 (patch)
 
 Changes since v1.0.10:
 
-- Bump Polyfill from 10.11.0 to 10.11.1 ([@dependabot[bot]](https://github.com/dependabot[bot]))
-- Bump the ktsu group with 8 updates ([@dependabot[bot]](https://github.com/dependabot[bot]))
+- Bump Polyfill from 10.11.0 to 10.11.1 (dependabot[bot])
+- Bump the ktsu group with 8 updates (dependabot[bot])
 
 ## v1.0.10 (patch)
 
 Changes since v1.0.9:
 
-- chore: trim central package versions for UndoRedo.Core ([@matt-edmondson](https://github.com/matt-edmondson))
-- Sync .github\workflows\dotnet.yml ([@KtsuTools](https://github.com/KtsuTools))
+- chore: trim central package versions for UndoRedo.Core (matt-edmondson)
+- Sync .github\workflows\dotnet.yml (KtsuTools)
 
 ## v1.0.10-pre.1 (prerelease)
 
 Changes since v1.0.9:
 
-- Sync .github\workflows\dotnet.yml ([@KtsuTools](https://github.com/KtsuTools))
+- Sync .github\workflows\dotnet.yml (KtsuTools)
 
 ## v1.0.9 (patch)
 
 Changes since v1.0.8:
 
-- Merge remote-tracking branch 'refs/remotes/origin/main' ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync .github\workflows\dotnet.yml ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync .github\workflows\dotnet.yml ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync .github\workflows\dotnet.yml ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync .github\workflows\dotnet.yml ([@ktsu[bot]](https://github.com/ktsu[bot]))
+- Merge remote-tracking branch 'refs/remotes/origin/main' (ktsu[bot])
+- Sync .github\workflows\dotnet.yml (ktsu[bot])
+- Sync .github\workflows\dotnet.yml (ktsu[bot])
+- Sync .github\workflows\dotnet.yml (ktsu[bot])
+- Sync .github\workflows\dotnet.yml (ktsu[bot])
 
 ## v1.0.9-pre.1 (prerelease)
 
 Changes since v1.0.8:
 
-- Sync .github\workflows\dotnet.yml ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync .github\workflows\dotnet.yml ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync .github\workflows\dotnet.yml ([@ktsu[bot]](https://github.com/ktsu[bot]))
+- Sync .github\workflows\dotnet.yml (ktsu[bot])
+- Sync .github\workflows\dotnet.yml (ktsu[bot])
+- Sync .github\workflows\dotnet.yml (ktsu[bot])
 
 ## v1.0.8 (patch)
 
 Changes since v1.0.7:
 
-- Remove legacy build scripts ([@matt-edmondson](https://github.com/matt-edmondson))
+- Remove legacy build scripts (matt-edmondson)
 
 ## v1.0.7 (patch)
 
 Changes since v1.0.6:
 
-- Sync .github\workflows\dotnet.yml ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync global.json ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Merge remote-tracking branch 'refs/remotes/origin/main' ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync scripts\update-winget-manifests.ps1 ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync scripts\update-winget-manifests.ps1 ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync scripts\PSBuild.psm1 ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync global.json ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Merge remote-tracking branch 'refs/remotes/origin/main' ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync scripts\PSBuild.psm1 ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync scripts\PSBuild.psm1 ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync global.json ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Merge remote-tracking branch 'refs/remotes/origin/main' ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync global.json ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Merge remote-tracking branch 'refs/remotes/origin/main' ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync COPYRIGHT.md ([@ktsu[bot]](https://github.com/ktsu[bot]))
+- Sync .github\workflows\dotnet.yml (ktsu[bot])
+- Sync global.json (ktsu[bot])
+- Merge remote-tracking branch 'refs/remotes/origin/main' (ktsu[bot])
+- Sync scripts\update-winget-manifests.ps1 (ktsu[bot])
+- Sync scripts\update-winget-manifests.ps1 (ktsu[bot])
+- Sync scripts\PSBuild.psm1 (ktsu[bot])
+- Sync global.json (ktsu[bot])
+- Merge remote-tracking branch 'refs/remotes/origin/main' (ktsu[bot])
+- Sync scripts\PSBuild.psm1 (ktsu[bot])
+- Sync scripts\PSBuild.psm1 (ktsu[bot])
+- Sync global.json (ktsu[bot])
+- Merge remote-tracking branch 'refs/remotes/origin/main' (ktsu[bot])
+- Sync global.json (ktsu[bot])
+- Merge remote-tracking branch 'refs/remotes/origin/main' (ktsu[bot])
+- Sync COPYRIGHT.md (ktsu[bot])
 
 ## v1.0.7-pre.5 (prerelease)
 
 Changes since v1.0.7-pre.4:
 
-- Merge remote-tracking branch 'refs/remotes/origin/main' ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync scripts\update-winget-manifests.ps1 ([@ktsu[bot]](https://github.com/ktsu[bot]))
+- Merge remote-tracking branch 'refs/remotes/origin/main' (ktsu[bot])
+- Sync scripts\update-winget-manifests.ps1 (ktsu[bot])
 
 ## v1.0.7-pre.4 (prerelease)
 
 Changes since v1.0.7-pre.3:
 
-- Sync scripts\update-winget-manifests.ps1 ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync scripts\PSBuild.psm1 ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync global.json ([@ktsu[bot]](https://github.com/ktsu[bot]))
+- Sync scripts\update-winget-manifests.ps1 (ktsu[bot])
+- Sync scripts\PSBuild.psm1 (ktsu[bot])
+- Sync global.json (ktsu[bot])
 
 ## v1.0.7-pre.3 (prerelease)
 
 Changes since v1.0.7-pre.2:
 
-- Merge remote-tracking branch 'refs/remotes/origin/main' ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync scripts\PSBuild.psm1 ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync scripts\PSBuild.psm1 ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync global.json ([@ktsu[bot]](https://github.com/ktsu[bot]))
+- Merge remote-tracking branch 'refs/remotes/origin/main' (ktsu[bot])
+- Sync scripts\PSBuild.psm1 (ktsu[bot])
+- Sync scripts\PSBuild.psm1 (ktsu[bot])
+- Sync global.json (ktsu[bot])
 
 ## v1.0.7-pre.2 (prerelease)
 
 Changes since v1.0.7-pre.1:
 
-- Merge remote-tracking branch 'refs/remotes/origin/main' ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync global.json ([@ktsu[bot]](https://github.com/ktsu[bot]))
+- Merge remote-tracking branch 'refs/remotes/origin/main' (ktsu[bot])
+- Sync global.json (ktsu[bot])
 
 ## v1.0.7-pre.1 (prerelease)
 
 Changes since v1.0.6:
 
-- Merge remote-tracking branch 'refs/remotes/origin/main' ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync COPYRIGHT.md ([@ktsu[bot]](https://github.com/ktsu[bot]))
+- Merge remote-tracking branch 'refs/remotes/origin/main' (ktsu[bot])
+- Sync COPYRIGHT.md (ktsu[bot])
 
 ## v1.0.6 (patch)
 
 Changes since v1.0.5:
 
-- Remove obsolete .project.json file from .specstory directory ([@matt-edmondson](https://github.com/matt-edmondson))
-- Refactor namespaces and update documentation for consistency across the UndoRedo library ([@matt-edmondson](https://github.com/matt-edmondson))
+- Remove obsolete .project.json file from .specstory directory (matt-edmondson)
+- Refactor namespaces and update documentation for consistency across the UndoRedo library (matt-edmondson)
 
 ## v1.0.5 (patch)
 
 Changes since v1.0.4:
 
-- Enhance test assertions with descriptive messages for clarity ([@matt-edmondson](https://github.com/matt-edmondson))
+- Enhance test assertions with descriptive messages for clarity (matt-edmondson)
 
 ## v1.0.4 (patch)
 
 Changes since v1.0.3:
 
-- Remove .github\workflows\project.yml ([@matt-edmondson](https://github.com/matt-edmondson))
+- Remove .github\workflows\project.yml (matt-edmondson)
 
 ## v1.0.4-pre.1 (prerelease)
 
 Changes since v1.0.3:
 
-- Merge remote-tracking branch 'refs/remotes/origin/main' ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync global.json ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Merge remote-tracking branch 'refs/remotes/origin/main' ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync .github\workflows\dotnet.yml ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync .gitignore ([@ktsu[bot]](https://github.com/ktsu[bot]))
+- Merge remote-tracking branch 'refs/remotes/origin/main' (ktsu[bot])
+- Sync global.json (ktsu[bot])
+- Merge remote-tracking branch 'refs/remotes/origin/main' (ktsu[bot])
+- Sync .github\workflows\dotnet.yml (ktsu[bot])
+- Sync .gitignore (ktsu[bot])
 
 ## v1.0.3 (patch)
 
 Changes since v1.0.2:
 
-- Migrate to dotnet 10 ([@matt-edmondson](https://github.com/matt-edmondson))
-- Refactor argument validation: Introduce Guard class for null checks and update package versions ([@matt-edmondson](https://github.com/matt-edmondson))
-- Update documentation files: removed outdated history file, added CLAUDE.md for project guidance ([@matt-edmondson](https://github.com/matt-edmondson))
-- Refactor project files to standardize SDK usage and update package references ([@matt-edmondson](https://github.com/matt-edmondson))
-- Update Microsoft.Testing.Extensions.CodeCoverage and MSTest packages to latest versions ([@matt-edmondson](https://github.com/matt-edmondson))
-- Update project configuration and metadata ([@matt-edmondson](https://github.com/matt-edmondson))
-- Update project documentation and enhance serialization features ([@matt-edmondson](https://github.com/matt-edmondson))
+- Migrate to dotnet 10 (matt-edmondson)
+- Refactor argument validation: Introduce Guard class for null checks and update package versions (matt-edmondson)
+- Update documentation files: removed outdated history file, added CLAUDE.md for project guidance (matt-edmondson)
+- Refactor project files to standardize SDK usage and update package references (matt-edmondson)
+- Update Microsoft.Testing.Extensions.CodeCoverage and MSTest packages to latest versions (matt-edmondson)
+- Update project configuration and metadata (matt-edmondson)
+- Update project documentation and enhance serialization features (matt-edmondson)
 
 ## v1.0.3-pre.1 (prerelease)
 
 Changes since v1.0.2:
 
-- Bump the microsoft group with 2 updates ([@dependabot[bot]](https://github.com/dependabot[bot]))
+- Bump the microsoft group with 2 updates (dependabot[bot])
 
 ## v1.0.2 (patch)
 
 Changes since v1.0.1:
 
-- Fix issues in UndoRedo functionality and tests ([@matt-edmondson](https://github.com/matt-edmondson))
-- Add script to automate winget manifest updates ([@matt-edmondson](https://github.com/matt-edmondson))
-- Refactor package management and improve error handling in CompositeCommand ([@matt-edmondson](https://github.com/matt-edmondson))
-- Update package references, improve project structure, and enhance documentation ([@matt-edmondson](https://github.com/matt-edmondson))
-- Refactor JsonUndoRedoSerializer and UndoRedoService error handling ([@matt-edmondson](https://github.com/matt-edmondson))
-- Enhance JsonUndoRedoSerializer and UndoRedoService functionality ([@matt-edmondson](https://github.com/matt-edmondson))
-- Update package versions, remove unused projects, and enhance documentation ([@matt-edmondson](https://github.com/matt-edmondson))
+- Fix issues in UndoRedo functionality and tests (matt-edmondson)
+- Add script to automate winget manifest updates (matt-edmondson)
+- Refactor package management and improve error handling in CompositeCommand (matt-edmondson)
+- Update package references, improve project structure, and enhance documentation (matt-edmondson)
+- Refactor JsonUndoRedoSerializer and UndoRedoService error handling (matt-edmondson)
+- Enhance JsonUndoRedoSerializer and UndoRedoService functionality (matt-edmondson)
+- Update package versions, remove unused projects, and enhance documentation (matt-edmondson)
 
 ## v1.0.1 (patch)
 
 Changes since v1.0.0:
 
-- Add serialization support for undo/redo stack state ([@matt-edmondson](https://github.com/matt-edmondson))
-- Update project configuration and CI/CD settings: modify .editorconfig for variable declaration preferences, enhance .gitignore for SpecStory files, adjust .runsettings for test parallelization, update package versions in Directory.Packages.props, and refine GitHub Actions workflow for better release management and SonarQube integration. ([@matt-edmondson](https://github.com/matt-edmondson))
+- Add serialization support for undo/redo stack state (matt-edmondson)
+- Update project configuration and CI/CD settings: modify .editorconfig for variable declaration preferences, enhance .gitignore for SpecStory files, adjust .runsettings for test parallelization, update package versions in Directory.Packages.props, and refine GitHub Actions workflow for better release management and SonarQube integration. (matt-edmondson)
 
 ## v1.0.1-pre.1 (prerelease)
 
 Changes since v1.0.0:
 
-- Update project configuration and CI/CD settings: modify .editorconfig for variable declaration preferences, enhance .gitignore for SpecStory files, adjust .runsettings for test parallelization, update package versions in Directory.Packages.props, and refine GitHub Actions workflow for better release management and SonarQube integration. ([@matt-edmondson](https://github.com/matt-edmondson))
+- Update project configuration and CI/CD settings: modify .editorconfig for variable declaration preferences, enhance .gitignore for SpecStory files, adjust .runsettings for test parallelization, update package versions in Directory.Packages.props, and refine GitHub Actions workflow for better release management and SonarQube integration. (matt-edmondson)
 
 ## v1.0.0 (major)
 
-- Enhance testing documentation in derived-cursor-rules.mdc with detailed commands for restoring dependencies, building, and running tests. Add new testing discussion document outlining test execution steps and troubleshooting for the UndoRedo project. ([@matt-edmondson](https://github.com/matt-edmondson))
-- Add project configuration files: Directory.Packages.props for centralized package version management and global.json for SDK and MSBuild SDK versions. Update UndoRedo.Core and UndoRedo.Test project files to remove specific versioning for dependencies and SDKs. ([@matt-edmondson](https://github.com/matt-edmondson))
-- Add .cursorignore for SpecStory backup files, enhance README with detailed library overview, features, and usage examples; add architecture and best practices documentation; implement core undo/redo functionality with command management and dependency injection support. ([@matt-edmondson](https://github.com/matt-edmondson))
-- Add project configuration files and ignore rules; remove sample applications ([@matt-edmondson](https://github.com/matt-edmondson))
-- Initial commit for UndoRedo ([@matt-edmondson](https://github.com/matt-edmondson))
+- Enhance testing documentation in derived-cursor-rules.mdc with detailed commands for restoring dependencies, building, and running tests. Add new testing discussion document outlining test execution steps and troubleshooting for the UndoRedo project. (matt-edmondson)
+- Add project configuration files: Directory.Packages.props for centralized package version management and global.json for SDK and MSBuild SDK versions. Update UndoRedo.Core and UndoRedo.Test project files to remove specific versioning for dependencies and SDKs. (matt-edmondson)
+- Add .cursorignore for SpecStory backup files, enhance README with detailed library overview, features, and usage examples; add architecture and best practices documentation; implement core undo/redo functionality with command management and dependency injection support. (matt-edmondson)
+- Add project configuration files and ignore rules; remove sample applications (matt-edmondson)
+- Initial commit for UndoRedo (matt-edmondson)
 
