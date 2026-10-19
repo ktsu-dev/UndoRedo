@@ -1,4 +1,4 @@
-// Copyright (c) 2023-2026 ktsu-dev contributors
+﻿// Copyright (c) 2023-2026 ktsu-dev contributors
 
 [assembly: Parallelize(Scope = ExecutionScope.MethodLevel)]
 
@@ -101,6 +101,83 @@ public class UndoRedoStackTests
 		Assert.AreEqual(3, value);
 		Assert.IsTrue(stack.CanUndo, "CanUndo should be true after executing commands");
 		Assert.IsFalse(stack.CanRedo, "CanRedo should be false when future commands have been cleared");
+	}
+
+	[TestMethod]
+	public void MarkAsSaved_RepeatedWithNoEditInBetween_KeepsOneBoundary()
+	{
+		UndoRedoService stack = CreateService();
+		int created = 0;
+		stack.SaveBoundaryCreated += (_, _) => created++;
+		stack.Execute(new DelegateCommand("Type", () => { }, () => { }));
+
+		stack.MarkAsSaved("First");
+		stack.MarkAsSaved("Second");
+		stack.MarkAsSaved("Third");
+
+		Assert.HasCount(1, stack.SaveBoundaries);
+		Assert.AreEqual(0, stack.SaveBoundaries[0].Position);
+		Assert.AreEqual("Third", stack.SaveBoundaries[0].Description);
+		Assert.AreEqual(3, created, "SaveBoundaryCreated should fire for every save");
+		Assert.IsFalse(stack.HasUnsavedChanges);
+	}
+
+	[TestMethod]
+	public void MarkAsSaved_AgainAtAnEarlierSavePoint_MovesItToTheEnd()
+	{
+		UndoRedoService stack = CreateService();
+		DelegateCommand command = new("Type", () => { }, () => { });
+		stack.Execute(command);
+		stack.MarkAsSaved("At 0");
+		stack.Execute(command);
+		stack.MarkAsSaved("At 1");
+		stack.Undo();
+
+		stack.MarkAsSaved("At 0 again");
+
+		Assert.HasCount(2, stack.SaveBoundaries);
+		Assert.AreEqual(1, stack.SaveBoundaries[0].Position);
+		Assert.AreEqual(0, stack.SaveBoundaries[1].Position);
+		Assert.AreEqual("At 0 again", stack.SaveBoundaries[1].Description);
+		Assert.IsFalse(stack.HasUnsavedChanges);
+		stack.Redo();
+		Assert.IsTrue(stack.HasUnsavedChanges, "Only the latest save matches what is on disk");
+	}
+
+	[TestMethod]
+	public async Task MarkAsSaved_Again_LeavesAnEarlierBoundaryOfThatSavePointUsable()
+	{
+		UndoRedoService stack = CreateService();
+		int value = 0;
+		DelegateCommand command = new("Increment", () => value++, () => value--);
+		stack.Execute(command);
+		stack.MarkAsSaved("First");
+		SaveBoundary held = stack.SaveBoundaries[0];
+		stack.MarkAsSaved("Second");
+		stack.Execute(command);
+
+		Assert.IsTrue(await stack.UndoToSaveBoundaryAsync(held, navigateToLastChange: false).ConfigureAwait(false));
+		Assert.AreEqual(1, value);
+	}
+
+	[TestMethod]
+	public async Task MarkAsSaved_Repeated_RoundTripsAsOneBoundary()
+	{
+		UndoRedoService stack = CreateService();
+		stack.SetSerializer(new JsonUndoRedoSerializer());
+		stack.Execute(new DelegateCommand("Type", () => { }, () => { }));
+		for (int i = 0; i < 100; i++)
+		{
+			stack.MarkAsSaved("Saved");
+		}
+
+		byte[] state = await stack.SaveStateAsync().ConfigureAwait(false);
+		UndoRedoService loaded = CreateService();
+		loaded.SetSerializer(new JsonUndoRedoSerializer());
+
+		Assert.IsTrue(await loaded.LoadStateAsync(state).ConfigureAwait(false));
+		Assert.HasCount(1, loaded.SaveBoundaries);
+		Assert.IsFalse(loaded.HasUnsavedChanges);
 	}
 
 	[TestMethod]
