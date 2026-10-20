@@ -44,7 +44,21 @@ public sealed class SaveBoundaryManager : ISaveBoundaryManager
 	/// <inheritdoc />
 	public SaveBoundary CreateSaveBoundary(int position, string? description = null)
 	{
-		SaveBoundary saveBoundary = new(position, description);
+		// Saving again where a boundary already is re-saves that save point rather than adding another,
+		// so repeated saves with no edit in between do not grow the list
+		int existing = _saveBoundaries.FindIndex(boundary => boundary.Position == position);
+		SaveBoundary saveBoundary;
+		if (existing >= 0)
+		{
+			// Keep the list in save order, so the re-saved boundary moves to the end as the latest
+			saveBoundary = new(_saveBoundaries[existing], description);
+			_saveBoundaries.RemoveAt(existing);
+		}
+		else
+		{
+			saveBoundary = new(position, description);
+		}
+
 		_saveBoundaries.Add(saveBoundary);
 		_latestSaveBoundary = saveBoundary;
 		InitialStateIsClean = false;

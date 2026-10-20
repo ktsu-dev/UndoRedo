@@ -42,6 +42,13 @@ public sealed class SaveBoundary(int position, string? description = null)
 	}
 
 	/// <summary>
+	/// Creates a fresh save of the same save point as <paramref name="original"/>, at its position, with a
+	/// new description and the current time, so a caller holding the original still resolves to it
+	/// </summary>
+	internal SaveBoundary(SaveBoundary original, string? description)
+		: this(original.Position, description) => Identity = original.Identity;
+
+	/// <summary>
 	/// The position in the stack where this save boundary was created
 	/// </summary>
 	public int Position { get; } = position;
