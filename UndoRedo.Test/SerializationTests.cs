@@ -168,7 +168,7 @@ public class SerializationTests
 		Assert.HasCount(1, loaded.AffectedItems);
 		Assert.AreEqual("doc", loaded.AffectedItems[0]);
 		Assert.IsNotNull(loaded.CustomData, "CustomData must survive a save and load");
-		Assert.AreEqual("alice", loaded.CustomData["author"].ToString());
+		Assert.AreEqual("alice", loaded.CustomData["author"], "A string should load back as a string, not a JsonElement");
 	}
 
 	[TestMethod]

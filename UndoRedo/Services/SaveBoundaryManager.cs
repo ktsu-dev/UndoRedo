@@ -73,11 +73,26 @@ public sealed class SaveBoundaryManager : ISaveBoundaryManager
 	/// </remarks>
 	internal void RestoreSaveBoundary(SaveBoundary saveBoundary)
 	{
-		SaveBoundary restored = new(saveBoundary.Position, saveBoundary.Description, saveBoundary.Timestamp);
+		// Keep the boundary's identity as well as its timestamp, so a SaveBoundary a caller already holds,
+		// from the restored state or from SaveBoundaryCreated, still resolves after the restore
+		SaveBoundary restored = new(saveBoundary, saveBoundary.Position);
 		_saveBoundaries.Add(restored);
 		_latestSaveBoundary = restored;
 		InitialStateIsClean = false;
 	}
+
+	/// <summary>
+	/// The index in <see cref="SaveBoundaries"/> of the boundary the most recent save made, or -1 when
+	/// that boundary is gone and no position matches what is on disk
+	/// </summary>
+	internal int LatestSaveBoundaryIndex => _latestSaveBoundary is null ? -1 : _saveBoundaries.IndexOf(_latestSaveBoundary);
+
+	/// <summary>
+	/// Sets which restored boundary the most recent save made, by its index in <see cref="SaveBoundaries"/>,
+	/// or none for -1
+	/// </summary>
+	internal void RestoreLatestSaveBoundary(int index) =>
+		_latestSaveBoundary = index >= 0 && index < _saveBoundaries.Count ? _saveBoundaries[index] : null;
 
 	/// <inheritdoc />
 	public int CleanupInvalidBoundaries(int maxValidPosition)

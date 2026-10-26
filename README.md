@@ -40,9 +40,11 @@ dotnet add package ktsu.UndoRedo
 
 ```csharp
 using ktsu.UndoRedo;
+using ktsu.UndoRedo.Core.Services;
 
-// Create an undo/redo stack
-var undoRedoStack = new UndoRedoStack();
+// Create an undo/redo service with the default stack, save boundary and merge services.
+// With dependency injection, call services.AddUndoRedo() and resolve IUndoRedoService instead.
+UndoRedoService undoRedoStack = UndoRedoService.Create();
 
 // Create a simple command using delegates
 var command = new DelegateCommand(
@@ -73,7 +75,8 @@ undoRedoStack.MarkAsSaved("Auto-save checkpoint");
 // Check if there are unsaved changes
 if (undoRedoStack.HasUnsavedChanges)
 {
-    // Prompt user to save or undo to last save point
+    // Prompt user to save or revert to the last save point. UndoToSaveBoundaryAsync redoes forward
+    // instead when the user has undone back past the save point.
     var lastSave = undoRedoStack.SaveBoundaries.LastOrDefault();
     if (lastSave != null)
     {
@@ -144,10 +147,12 @@ public class TextEditCommand : BaseCommand
 
     public override bool CanMergeWith(ICommand other)
     {
-        // Allow merging consecutive character insertions
+        // Merge each typed character into the run before it. Only the incoming edit must be a single
+        // character: this command may already hold several from earlier merges.
         return other is TextEditCommand textCmd &&
-               textCmd._position == _position + _newText.Length &&
-               _newText.Length == 1 && textCmd._newText.Length == 1;
+               textCmd._oldText.Length == 0 &&
+               textCmd._newText.Length == 1 &&
+               textCmd._position == _position + _newText.Length;
     }
 
     public override ICommand MergeWith(ICommand other)
@@ -233,14 +238,21 @@ public class MyCommand : BaseCommand, ISerializableCommand
 }
 ```
 
+A `CompositeCommand` is saved as its sub-commands and rebuilt when every one of them can be. A command
+that can't be rebuilt, such as a `DelegateCommand`, loads as an `IPlaceholderCommand`: it keeps its
+description and metadata, but `CanUndo` and `CanRedo` report `false` while it is the next step, so the
+history on the far side of it can't be reached. `ChangeMetadata.CustomData` values load back as plain
+values: strings, `long` for whole numbers, `double`, `bool`, lists and dictionaries.
+
 ## Advanced Configuration
 
 ```csharp
+using ktsu.UndoRedo.Models;
+
 // Configure stack behavior
-var undoRedoStack = new UndoRedoStack(
-    maxStackSize: 500,        // Limit to 500 commands
-    autoMergeCommands: true   // Automatically merge compatible commands
-);
+UndoRedoService undoRedoStack = UndoRedoService.Create(UndoRedoOptions.Create(
+    maxStackSize: 500,   // Limit to 500 commands
+    autoMerge: true));   // Automatically merge compatible commands
 
 // Set up navigation with custom behavior
 undoRedoStack.SetNavigationProvider(navigationProvider);
@@ -256,15 +268,6 @@ await undoRedoStack.RedoAsync(navigateToChange: true);
 commands hold, measure it yourself and drop the oldest steps with `DropOldest`:
 
 ```csharp
-undoRedoStack.CommandsDropped += (sender, e) =>
-{
-    // e.Commands can no longer be undone, so release whatever they held for undo
-    foreach (ICommand command in e.Commands)
-    {
-        (command as IDisposable)?.Dispose();
-    }
-};
-
 int dropped = undoRedoStack.DropOldest(10);
 ```
 
@@ -273,6 +276,30 @@ Save boundaries move down with the history: a save on the last dropped step land
 the state the history now starts from, and saves on earlier steps are removed because they can no
 longer be reached. `CommandsDropped` also fires when `MaxStackSize` trims the history.
 
+### Releasing what commands hold
+
+Commands leave the history in more ways than trimming: a new edit after an undo throws away the steps
+that could have been redone, a merge replaces two commands with one, and `Clear`, `RestoreFromState`
+and `LoadStateAsync` replace the whole history. `CommandsDiscarded` reports every one of them, once,
+with the reason, so it is the event to release resources from:
+
+```csharp
+undoRedoStack.CommandsDiscarded += (sender, e) =>
+{
+    // e.Commands can no longer be undone or redone, so release whatever they held for that
+    foreach (ICommand command in e.Commands)
+    {
+        (command as IDisposable)?.Dispose();
+    }
+};
+```
+
+### Event handlers that throw
+
+Every handler runs even when one throws, and the operation finishes first. Any exceptions are then
+thrown together as an `UndoRedoHandlerException`, which means the command *was* executed, undone or
+redone. Don't retry the operation when you catch one.
+
 ## Integration Examples
 
 ### Text Editor Integration
@@ -280,7 +307,7 @@ longer be reached. `CommandsDropped` also fires when `MaxStackSize` trims the hi
 ```csharp
 public class TextEditorUndoRedo
 {
-    private readonly UndoRedoStack _undoRedo = new();
+    private readonly UndoRedoService _undoRedo = UndoRedoService.Create();
     private readonly ITextEditor _editor;
 
     public void OnTextChanged(TextChangeEventArgs e)
@@ -301,7 +328,7 @@ public class TextEditorUndoRedo
 ```csharp
 public class DocumentViewModel : INotifyPropertyChanged
 {
-    private readonly UndoRedoStack _undoRedo = new();
+    private readonly UndoRedoService _undoRedo = UndoRedoService.Create();
 
     public ICommand UndoCommand => new RelayCommand(
         execute: () => _undoRedo.Undo(),
@@ -321,7 +348,7 @@ public class DocumentViewModel : INotifyPropertyChanged
 
 ### Core Classes
 
--   **`UndoRedoStack`**: Main class managing the undo/redo operations
+-   **`UndoRedoService`** / **`IUndoRedoService`**: Main class managing the undo/redo operations; `UndoRedoService.Create()` builds one with the default services
 -   **`ICommand`**: Interface for implementing undoable commands
 -   **`BaseCommand`**: Base class with common command functionality
 -   **`DelegateCommand`**: Simple command using delegates

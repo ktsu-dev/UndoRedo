@@ -31,11 +31,25 @@ public sealed class UndoRedoService(
 	private INavigationProvider? _navigationProvider = navigationProvider;
 	private IUndoRedoSerializer? _serializer;
 
-	/// <inheritdoc />
-	public bool CanUndo => _stackManager.CanUndo;
+	// Set by anything that moves the position other than executing, so the next Execute starts a new
+	// command instead of merging into the one the user undid or redid to, or one restored from saved state
+	private bool _mergeChainBroken;
+
+	/// <summary>
+	/// Creates a service over the default <see cref="StackManager"/>, <see cref="SaveBoundaryManager"/> and
+	/// <see cref="CommandMerger"/>, which is what <c>services.AddUndoRedo()</c> registers
+	/// </summary>
+	/// <param name="options">Configuration options, or null for <see cref="UndoRedoOptions.Default"/></param>
+	/// <param name="navigationProvider">Optional navigation provider</param>
+	/// <returns>A new, empty undo/redo service</returns>
+	public static UndoRedoService Create(UndoRedoOptions? options = null, INavigationProvider? navigationProvider = null) =>
+		new(new StackManager(), new SaveBoundaryManager(), new CommandMerger(), options, navigationProvider);
 
 	/// <inheritdoc />
-	public bool CanRedo => _stackManager.CanRedo;
+	public bool CanUndo => _stackManager.GetCurrentCommand() is { } command && command is not IPlaceholderCommand;
+
+	/// <inheritdoc />
+	public bool CanRedo => NextCommand() is { } command && command is not IPlaceholderCommand;
 
 	/// <inheritdoc />
 	public int CurrentPosition => _stackManager.CurrentPosition;
@@ -68,12 +82,35 @@ public sealed class UndoRedoService(
 	public event EventHandler<CommandsDroppedEventArgs>? CommandsDropped;
 
 	/// <inheritdoc />
+	public event EventHandler<CommandsDiscardedEventArgs>? CommandsDiscarded;
+
+	/// <inheritdoc />
 	public event EventHandler? StateChanged;
 
 	/// <summary>
 	/// Raises <see cref="StateChanged"/> after an operation has changed the history
 	/// </summary>
-	private void OnStateChanged() => StateChanged?.Invoke(this, EventArgs.Empty);
+	private void OnStateChanged(HandlerErrors errors) => errors.Raise(StateChanged, this, EventArgs.Empty);
+
+	/// <summary>
+	/// Raises <see cref="CommandsDiscarded"/> for <paramref name="commands"/>, if there are any
+	/// </summary>
+	private void OnCommandsDiscarded(HandlerErrors errors, List<ICommand> commands, CommandDiscardReason reason)
+	{
+		if (commands.Count > 0)
+		{
+			errors.Raise(CommandsDiscarded, this, new CommandsDiscardedEventArgs(commands, reason, _stackManager.CurrentPosition));
+		}
+	}
+
+	private ICommand? NextCommand()
+	{
+		int next = _stackManager.CurrentPosition + 1;
+		return next >= 0 && next < _stackManager.Commands.Count ? _stackManager.Commands[next] : null;
+	}
+
+	// The commands after the current position, which executing anything throws away
+	private List<ICommand> RedoTail() => [.. _stackManager.Commands.Skip(_stackManager.CurrentPosition + 1)];
 
 	/// <summary>
 	/// Sets the navigation provider
@@ -90,59 +127,26 @@ public sealed class UndoRedoService(
 
 		// Try to merge with the last command if auto-merge is enabled. Never merge into a command that
 		// ends at a save boundary: that would fold the new edit into the saved state and delete the
-		// boundary, so Undo could never return to what was saved.
-		if (_options.AutoMergeCommands && _stackManager.CanUndo && !IsAtSaveBoundary(_stackManager.CurrentPosition))
+		// boundary, so Undo could never return to what was saved. Nor into one the user undid or redid
+		// to: that is a state they chose, and merging would leave Undo unable to return to it.
+		if (_options.AutoMergeCommands && !_mergeChainBroken && _stackManager.CanUndo && !IsAtSaveBoundary(_stackManager.CurrentPosition))
 		{
 			ICommand? lastCommand = _stackManager.GetCurrentCommand();
-			if (lastCommand != null && _commandMerger.CanMerge(lastCommand, command))
+			if (lastCommand is not null and not IPlaceholderCommand && _commandMerger.CanMerge(lastCommand, command))
 			{
-				ICommand mergedCommand = _commandMerger.Merge(lastCommand, command);
-
-				// Apply the real state change before touching the stack, so a failure here can never
-				// leave the stack recording a command that was not actually applied. This mirrors the
-				// non-merge path below and CompositeCommand.Execute().
-				// If this Undo throws, nothing has been mutated and the stack is still accurate.
-				lastCommand.Undo();
-
-				try
-				{
-					mergedCommand.Execute();
-				}
-#pragma warning disable CA1031 // Do not catch general exception types
-				catch (Exception)
-				{
-					// The merged edit failed, so put the application back where the stack says it is
-					try
-					{
-						lastCommand.Execute();
-					}
-					catch (Exception)
-					{
-						// Continue unwinding even if the restore fails
-					}
-
-					throw; // Re-throw the original exception
-				}
-#pragma warning restore CA1031 // Do not catch general exception types
-
-				// Replace the last command with the merged one
-				_stackManager.MovePrevious(); // Move back to remove the last command
-				_stackManager.ClearForward(); // Clear the old command
-				_saveBoundaryManager.CleanupInvalidBoundaries(_stackManager.CurrentPosition);
-				_stackManager.AddCommand(mergedCommand); // Add the merged command
-
-				CommandExecuted?.Invoke(this, new CommandExecutedEventArgs(mergedCommand, _stackManager.CurrentPosition));
-				OnStateChanged();
+				ExecuteMerged(lastCommand, command);
 				return;
 			}
 		}
 
 		// Apply the real state change before discarding anything, so a failure here can never throw
 		// away redo history for a command that was not actually applied. This mirrors the merge path
-		// above and CompositeCommand.Execute().
+		// and CompositeCommand.Execute().
 		command.Execute();
+		_mergeChainBroken = false;
 
 		// Clear any commands after the current position and cleanup save boundaries
+		List<ICommand> branched = RedoTail();
 		_stackManager.ClearForward();
 		_saveBoundaryManager.CleanupInvalidBoundaries(_stackManager.CurrentPosition);
 
@@ -156,13 +160,66 @@ public sealed class UndoRedoService(
 			dropped = RemoveOldest(_stackManager.Commands.Count - _options.MaxStackSize);
 		}
 
-		CommandExecuted?.Invoke(this, new CommandExecutedEventArgs(command, _stackManager.CurrentPosition));
+		HandlerErrors errors = new();
+		errors.Raise(CommandExecuted, this, new CommandExecutedEventArgs(command, _stackManager.CurrentPosition));
+		OnCommandsDiscarded(errors, branched, CommandDiscardReason.Branched);
 		if (dropped.Count > 0)
 		{
-			CommandsDropped?.Invoke(this, new CommandsDroppedEventArgs(dropped, _stackManager.CurrentPosition));
+			errors.Raise(CommandsDropped, this, new CommandsDroppedEventArgs(dropped, _stackManager.CurrentPosition));
+			OnCommandsDiscarded(errors, dropped, CommandDiscardReason.Trimmed);
 		}
 
-		OnStateChanged();
+		OnStateChanged(errors);
+		errors.ThrowIfAny();
+	}
+
+	private void ExecuteMerged(ICommand lastCommand, ICommand command)
+	{
+		ICommand mergedCommand = _commandMerger.Merge(lastCommand, command);
+
+		// Apply the real state change before touching the stack, so a failure here can never
+		// leave the stack recording a command that was not actually applied. This mirrors the
+		// non-merge path and CompositeCommand.Execute().
+		// If this Undo throws, nothing has been mutated and the stack is still accurate.
+		lastCommand.Undo();
+
+		try
+		{
+			mergedCommand.Execute();
+		}
+#pragma warning disable CA1031 // Do not catch general exception types
+		catch (Exception)
+		{
+			// The merged edit failed, so put the application back where the stack says it is
+			try
+			{
+				lastCommand.Execute();
+			}
+			catch (Exception)
+			{
+				// Continue unwinding even if the restore fails
+			}
+
+			throw; // Re-throw the original exception
+		}
+#pragma warning restore CA1031 // Do not catch general exception types
+
+		// Replace the last command with the merged one
+		List<ICommand> branched = RedoTail();
+		_stackManager.MovePrevious(); // Move back to remove the last command
+		_stackManager.ClearForward(); // Clear the old command
+		_saveBoundaryManager.CleanupInvalidBoundaries(_stackManager.CurrentPosition);
+		_stackManager.AddCommand(mergedCommand); // Add the merged command
+
+		// The commands the merged one replaced, unless the merger returned one of them
+		List<ICommand> merged = [.. new[] { lastCommand, command }.Where(replaced => !ReferenceEquals(replaced, mergedCommand))];
+
+		HandlerErrors errors = new();
+		errors.Raise(CommandExecuted, this, new CommandExecutedEventArgs(mergedCommand, _stackManager.CurrentPosition));
+		OnCommandsDiscarded(errors, branched, CommandDiscardReason.Branched);
+		OnCommandsDiscarded(errors, merged, CommandDiscardReason.Merged);
+		OnStateChanged(errors);
+		errors.ThrowIfAny();
 	}
 
 	/// <inheritdoc />
@@ -180,8 +237,11 @@ public sealed class UndoRedoService(
 		}
 
 		List<ICommand> dropped = RemoveOldest(drop);
-		CommandsDropped?.Invoke(this, new CommandsDroppedEventArgs(dropped, _stackManager.CurrentPosition));
-		OnStateChanged();
+		HandlerErrors errors = new();
+		errors.Raise(CommandsDropped, this, new CommandsDroppedEventArgs(dropped, _stackManager.CurrentPosition));
+		OnCommandsDiscarded(errors, dropped, CommandDiscardReason.Trimmed);
+		OnStateChanged(errors);
+		errors.ThrowIfAny();
 		return dropped.Count;
 	}
 
@@ -210,8 +270,9 @@ public sealed class UndoRedoService(
 	/// <inheritdoc />
 	public async Task<bool> UndoAsync(bool navigateToChange = true, CancellationToken cancellationToken = default)
 	{
+		// A placeholder can't be undone, so report nothing to do rather than throwing on every attempt
 		ICommand? command = _stackManager.GetCurrentCommand();
-		if (command == null)
+		if (command is null or IPlaceholderCommand)
 		{
 			return false;
 		}
@@ -220,14 +281,17 @@ public sealed class UndoRedoService(
 		// stack describing what is actually applied. This mirrors Execute() above.
 		command.Undo();
 		_stackManager.MovePrevious();
-		CommandUndone?.Invoke(this, new CommandUndoneEventArgs(command, _stackManager.CurrentPosition));
-		OnStateChanged();
+		_mergeChainBroken = true;
+		HandlerErrors errors = new();
+		errors.Raise(CommandUndone, this, new CommandUndoneEventArgs(command, _stackManager.CurrentPosition));
+		OnStateChanged(errors);
 
 		if (navigateToChange)
 		{
 			await NavigateSafelyAsync(command.NavigationContext, cancellationToken).ConfigureAwait(false);
 		}
 
+		errors.ThrowIfAny();
 		return true;
 	}
 
@@ -237,24 +301,27 @@ public sealed class UndoRedoService(
 	/// <inheritdoc />
 	public async Task<bool> RedoAsync(bool navigateToChange = true, CancellationToken cancellationToken = default)
 	{
-		if (!_stackManager.CanRedo)
+		ICommand? command = NextCommand();
+		if (command is null or IPlaceholderCommand)
 		{
 			return false;
 		}
 
 		// Reapply the real state change before moving the position, so a command that throws can still
 		// be redone and is never undone without having been applied. This mirrors Execute() above.
-		ICommand command = _stackManager.Commands[_stackManager.CurrentPosition + 1];
 		command.Execute();
 		_stackManager.MoveNext();
-		CommandRedone?.Invoke(this, new CommandRedoneEventArgs(command, _stackManager.CurrentPosition));
-		OnStateChanged();
+		_mergeChainBroken = true;
+		HandlerErrors errors = new();
+		errors.Raise(CommandRedone, this, new CommandRedoneEventArgs(command, _stackManager.CurrentPosition));
+		OnStateChanged(errors);
 
 		if (navigateToChange)
 		{
 			await NavigateSafelyAsync(command.NavigationContext, cancellationToken).ConfigureAwait(false);
 		}
 
+		errors.ThrowIfAny();
 		return true;
 	}
 
@@ -265,16 +332,27 @@ public sealed class UndoRedoService(
 	public void MarkAsSaved(string? description = null)
 	{
 		SaveBoundary saveBoundary = _saveBoundaryManager.CreateSaveBoundary(_stackManager.CurrentPosition, description);
-		SaveBoundaryCreated?.Invoke(this, new SaveBoundaryCreatedEventArgs(saveBoundary));
-		OnStateChanged();
+		HandlerErrors errors = new();
+		errors.Raise(SaveBoundaryCreated, this, new SaveBoundaryCreatedEventArgs(saveBoundary));
+		OnStateChanged(errors);
+		errors.ThrowIfAny();
 	}
 
 	/// <inheritdoc />
 	public void Clear()
 	{
+		// Clearing the history doesn't change the document, so it is exactly as saved or unsaved as before
+		bool clean = !HasUnsavedChanges;
+		List<ICommand> cleared = [.. _stackManager.Commands];
 		_stackManager.Clear();
 		_saveBoundaryManager.Clear();
-		OnStateChanged();
+		_saveBoundaryManager.SetInitialStateClean(clean);
+		_mergeChainBroken = true;
+
+		HandlerErrors errors = new();
+		OnCommandsDiscarded(errors, cleared, CommandDiscardReason.Cleared);
+		OnStateChanged(errors);
+		errors.ThrowIfAny();
 	}
 
 	/// <inheritdoc />
@@ -296,42 +374,53 @@ public sealed class UndoRedoService(
 		// A boundary the caller has held since before the stack was trimmed carries a stale position,
 		// and one removed by branching or clearing no longer marks a reachable saved state
 		SaveBoundary? liveBoundary = FindLiveSaveBoundary(saveBoundary);
-		if (liveBoundary == null)
+		if (liveBoundary == null || _stackManager.CurrentPosition == liveBoundary.Position)
 		{
 			return false;
 		}
 
-		saveBoundary = liveBoundary;
-
-		if (_stackManager.CurrentPosition <= saveBoundary.Position)
+		// The commands between here and the boundary, in the order they are undone or redone. A placeholder
+		// among them can't be stepped through, so refuse before changing anything.
+		int current = _stackManager.CurrentPosition;
+		bool forward = current < liveBoundary.Position;
+		List<ICommand> path = forward
+			? [.. _stackManager.Commands.Skip(current + 1).Take(liveBoundary.Position - current)]
+			: [.. _stackManager.Commands.Skip(liveBoundary.Position + 1).Take(current - liveBoundary.Position).Reverse()];
+		if (path.Any(command => command is IPlaceholderCommand))
 		{
 			return false;
 		}
 
+		_mergeChainBroken = true;
+		HandlerErrors errors = new();
 		ICommand? lastCommand = null;
 		try
 		{
-			while (_stackManager.CurrentPosition > saveBoundary.Position)
+			foreach (ICommand command in path)
 			{
-				ICommand? command = _stackManager.GetCurrentCommand();
-				if (command == null)
+				// Stop at the first failure with the position still where the failed command left it
+				if (forward)
 				{
-					break;
+					command.Execute();
+					_stackManager.MoveNext();
+					errors.Raise(CommandRedone, this, new CommandRedoneEventArgs(command, _stackManager.CurrentPosition));
+				}
+				else
+				{
+					command.Undo();
+					_stackManager.MovePrevious();
+					errors.Raise(CommandUndone, this, new CommandUndoneEventArgs(command, _stackManager.CurrentPosition));
 				}
 
-				// Stop at the first failure with the position still on the command that failed to undo
-				command.Undo();
-				_stackManager.MovePrevious();
 				lastCommand = command;
-				CommandUndone?.Invoke(this, new CommandUndoneEventArgs(command, _stackManager.CurrentPosition));
 			}
 		}
 		finally
 		{
-			// Once for the whole walk, including the commands undone before one that failed
+			// Once for the whole walk, including the commands moved past before one that failed
 			if (lastCommand != null)
 			{
-				OnStateChanged();
+				OnStateChanged(errors);
 			}
 		}
 
@@ -340,6 +429,7 @@ public sealed class UndoRedoService(
 			await NavigateSafelyAsync(lastCommand.NavigationContext, cancellationToken).ConfigureAwait(false);
 		}
 
+		errors.ThrowIfAny();
 		return true;
 	}
 
@@ -351,9 +441,14 @@ public sealed class UndoRedoService(
 		_saveBoundaryManager.SaveBoundaries.FirstOrDefault(boundary => boundary.IsSameSavePointAs(saveBoundary));
 
 	/// <summary>
-	/// The longest navigation timeout <see cref="CancellationTokenSource.CancelAfter(TimeSpan)"/> accepts on every target framework.
+	/// The longest navigation timeout <see cref="Task.Delay(TimeSpan, CancellationToken)"/> accepts on every target framework.
 	/// </summary>
 	private static readonly TimeSpan MaxNavigationTimeout = TimeSpan.FromMilliseconds(int.MaxValue);
+
+	/// <summary>
+	/// How long a cancelled navigation is given to stop before it is abandoned.
+	/// </summary>
+	private static readonly TimeSpan CancellationGrace = TimeSpan.FromMilliseconds(100);
 
 	/// <summary>
 	/// Navigates to where a change was made, after the undo or redo has already been applied.
@@ -378,15 +473,37 @@ public sealed class UndoRedoService(
 
 			using CancellationTokenSource cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
 
-			// CancelAfter throws for negative delays and for delays past its limit, which is
+			// Task.Delay throws for negative delays and for delays past its limit, which is
 			// int.MaxValue ms on older targets. Treat those as "no timeout" rather than failing here.
 			TimeSpan timeout = _options.EffectiveNavigationTimeout;
-			if (timeout > TimeSpan.Zero && timeout <= MaxNavigationTimeout)
+			Task navigation = _navigationProvider.NavigateToAsync(navigationContext!, cts.Token);
+			if (timeout <= TimeSpan.Zero || timeout > MaxNavigationTimeout)
 			{
-				cts.CancelAfter(timeout);
+				await navigation.ConfigureAwait(false);
+				return;
 			}
 
-			await _navigationProvider.NavigateToAsync(navigationContext!, cts.Token).ConfigureAwait(false);
+			// A provider that ignores the token, such as one awaiting a UI dispatcher, would otherwise hold
+			// the caller past the timeout, so stop waiting for it rather than relying on it to cancel
+			Task delay = Task.Delay(timeout, cts.Token);
+			Task finished = await Task.WhenAny(navigation, delay).ConfigureAwait(false);
+			await cts.CancelAsync().ConfigureAwait(false);
+
+			// A provider that observes the token stops as soon as it is cancelled, so give it a moment to
+			// do that before abandoning it
+			if (finished != navigation)
+			{
+				finished = await Task.WhenAny(navigation, Task.Delay(CancellationGrace, CancellationToken.None)).ConfigureAwait(false);
+			}
+
+			if (finished == navigation)
+			{
+				await navigation.ConfigureAwait(false);
+				return;
+			}
+
+			// Observe whatever the abandoned navigation throws later, so it doesn't go unobserved
+			_ = navigation.ContinueWith(task => _ = task.Exception, CancellationToken.None, TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
 		}
 #pragma warning disable CA1031 // Do not catch general exception types
 		catch (Exception)
@@ -437,14 +554,17 @@ public sealed class UndoRedoService(
 	/// <inheritdoc />
 	public async Task<byte[]> SaveStateAsync(CancellationToken cancellationToken = default)
 	{
-		return _serializer == null
-			? throw new InvalidOperationException("No serializer configured. Call SetSerializer() first.")
-			: await _serializer.SerializeAsync(
-			_stackManager.Commands,
-			_stackManager.CurrentPosition,
-			_saveBoundaryManager.SaveBoundaries,
-			_saveBoundaryManager.InitialStateIsClean,
-			cancellationToken).ConfigureAwait(false);
+		return _serializer switch
+		{
+			null => throw new InvalidOperationException("No serializer configured. Call SetSerializer() first."),
+			IUndoRedoStateSerializer stateSerializer => await stateSerializer.SerializeAsync(GetCurrentState(), cancellationToken).ConfigureAwait(false),
+			_ => await _serializer.SerializeAsync(
+				_stackManager.Commands,
+				_stackManager.CurrentPosition,
+				_saveBoundaryManager.SaveBoundaries,
+				_saveBoundaryManager.InitialStateIsClean,
+				cancellationToken).ConfigureAwait(false),
+		};
 	}
 
 	/// <inheritdoc />
@@ -476,6 +596,12 @@ public sealed class UndoRedoService(
 	)
 	{
 		InitialStateIsClean = _saveBoundaryManager.InitialStateIsClean,
+
+		// ISaveBoundaryManager can't say which boundary is the latest, so for a custom manager the last
+		// one in the list stands for it, as restoring has always assumed
+		LatestSaveBoundaryIndex = _saveBoundaryManager is SaveBoundaryManager builtInManager
+			? builtInManager.LatestSaveBoundaryIndex
+			: _saveBoundaryManager.SaveBoundaries.Count - 1,
 	};
 
 	/// <inheritdoc />
@@ -494,6 +620,11 @@ public sealed class UndoRedoService(
 		// views would otherwise be emptied by the Clear() calls below.
 		List<ICommand> commands = [.. state.Commands];
 		List<SaveBoundary> saveBoundaries = [.. state.SaveBoundaries];
+
+		// The commands leaving the history: those the restored state doesn't hold as well
+		List<ICommand> replaced = [.. _stackManager.Commands.Where(command => !commands.Any(restored => ReferenceEquals(restored, command)))];
+		_mergeChainBroken = true;
+		HandlerErrors errors = new();
 
 		try
 		{
@@ -533,15 +664,26 @@ public sealed class UndoRedoService(
 				}
 			}
 
-			OnStateChanged();
-			return true;
+			// Restoring made the last boundary the latest. State that records which one was, including
+			// none because a branch removed it, says otherwise.
+			if (state.LatestSaveBoundaryIndex is int latest && _saveBoundaryManager is SaveBoundaryManager restoredManager)
+			{
+				restoredManager.RestoreLatestSaveBoundary(latest);
+			}
 		}
 		catch (Exception ex) when (ex is InvalidOperationException or ArgumentException)
 		{
 			// The history was already cleared, so it has changed even though the restore failed
-			OnStateChanged();
+			OnCommandsDiscarded(errors, replaced, CommandDiscardReason.Replaced);
+			OnStateChanged(errors);
+			errors.ThrowIfAny();
 			return false;
 		}
+
+		OnCommandsDiscarded(errors, replaced, CommandDiscardReason.Replaced);
+		OnStateChanged(errors);
+		errors.ThrowIfAny();
+		return true;
 	}
 
 	private static bool IsRestorable(UndoRedoStackState state) =>
@@ -552,4 +694,65 @@ public sealed class UndoRedoService(
 		state.SaveBoundaries.All(boundary => boundary.Position >= -1 && boundary.Position < state.Commands.Count) &&
 		state.CurrentPosition >= -1 &&
 		state.CurrentPosition < state.Commands.Count;
+
+	/// <summary>
+	/// Raises events after an operation has changed the history, calling every handler even when one throws,
+	/// so a failing handler can neither stop the others nor make the operation look as though it failed
+	/// </summary>
+	private sealed class HandlerErrors
+	{
+		private List<Exception>? _exceptions;
+
+		public void Raise<TEventArgs>(EventHandler<TEventArgs>? handler, object sender, TEventArgs args)
+		{
+			if (handler == null)
+			{
+				return;
+			}
+
+			foreach (EventHandler<TEventArgs> each in handler.GetInvocationList().Cast<EventHandler<TEventArgs>>())
+			{
+				Invoke(() => each(sender, args));
+			}
+		}
+
+		public void Raise(EventHandler? handler, object sender, EventArgs args)
+		{
+			if (handler == null)
+			{
+				return;
+			}
+
+			foreach (EventHandler each in handler.GetInvocationList().Cast<EventHandler>())
+			{
+				Invoke(() => each(sender, args));
+			}
+		}
+
+		/// <summary>
+		/// Throws <see cref="UndoRedoHandlerException"/> if any handler threw, once the operation is complete
+		/// </summary>
+		public void ThrowIfAny()
+		{
+			if (_exceptions != null)
+			{
+				throw new UndoRedoHandlerException(_exceptions);
+			}
+		}
+
+		private void Invoke(Action handler)
+		{
+			try
+			{
+				handler();
+			}
+#pragma warning disable CA1031 // Do not catch general exception types
+			catch (Exception ex)
+			{
+				// Reported by ThrowIfAny once the operation, and every other handler, has finished
+				(_exceptions ??= []).Add(ex);
+			}
+#pragma warning restore CA1031 // Do not catch general exception types
+		}
+	}
 }

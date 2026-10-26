@@ -36,6 +36,17 @@ public record UndoRedoStackState(
 	public bool InitialStateIsClean { get; init; } = true;
 
 	/// <summary>
+	/// Gets the index in <see cref="SaveBoundaries"/> of the boundary the most recent save made, which is
+	/// the only one whose position matches what is on disk, or -1 when that boundary was removed by
+	/// branching and no position does
+	/// </summary>
+	/// <remarks>
+	/// <see langword="null"/> for state saved before this was recorded, which restores the last boundary
+	/// in the list as the latest.
+	/// </remarks>
+	public int? LatestSaveBoundaryIndex { get; init; }
+
+	/// <summary>
 	/// Creates an empty stack state
 	/// </summary>
 	/// <param name="formatVersion">The format version</param>

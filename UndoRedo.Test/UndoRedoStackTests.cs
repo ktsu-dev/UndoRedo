@@ -550,8 +550,8 @@ public class UndoRedoStackTests
 
 		// Assert
 		Assert.AreEqual("AB", value);
-		Assert.AreEqual(1, stack.CommandCount, "Forward commands should be removed when executing after undo");
-		Assert.IsEmpty(stack.SaveBoundaries, "Save boundaries beyond the current position should be cleaned up on merge");
+		Assert.AreEqual(2, stack.CommandCount, "Forward commands should be removed, and the edit should not merge into the command undone to");
+		Assert.IsEmpty(stack.SaveBoundaries, "Save boundaries beyond the current position should be cleaned up");
 		Assert.IsFalse(stack.CanRedo, "Redo should be unavailable after forward commands are cleared");
 	}
 
@@ -1343,7 +1343,7 @@ public class UndoRedoStackTests
 		Assert.IsEmpty(stack.SaveBoundaries);
 		Assert.IsFalse(stack.CanUndo, "CanUndo should be false after clearing the stack");
 		Assert.IsFalse(stack.CanRedo, "CanRedo should be false after clearing the stack");
-		Assert.IsFalse(stack.HasUnsavedChanges, "HasUnsavedChanges should be false after clearing the stack");
+		Assert.IsTrue(stack.HasUnsavedChanges, "Clearing the history should not mark an unsaved edit as saved");
 	}
 
 	[TestMethod]
