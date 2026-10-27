@@ -69,7 +69,7 @@ Otherwise a reloaded stack whose oldest commands were trimmed reports no unsaved
 
 ```csharp
 // Create the undo/redo stack
-var undoRedoStack = new UndoRedoStack();
+UndoRedoService undoRedoStack = UndoRedoService.Create();
 
 // Configure JSON serializer
 var serializer = new JsonUndoRedoSerializer();
@@ -134,6 +134,10 @@ public class BinaryUndoRedoSerializer : IUndoRedoSerializer
         // Write commands
         writer.Write(commands.Count);
         writer.Write(currentPosition);
+
+        // Must round-trip: after the oldest commands are trimmed, position -1 is no longer the clean
+        // initial state, and dropping this would reload unsaved changes as saved
+        writer.Write(initialStateIsClean);
         
         foreach (var command in commands)
         {
@@ -171,6 +175,7 @@ public class BinaryUndoRedoSerializer : IUndoRedoSerializer
         // Read commands
         int commandCount = reader.ReadInt32();
         int currentPosition = reader.ReadInt32();
+        bool initialStateIsClean = reader.ReadBoolean();
         
         var commands = new List<ICommand>();
         for (int i = 0; i < commandCount; i++)
@@ -189,7 +194,10 @@ public class BinaryUndoRedoSerializer : IUndoRedoSerializer
             boundaries.Add(new SaveBoundary(position, description, boundaryTime));
         }
         
-        return new UndoRedoStackState(commands, currentPosition, boundaries, version, timestamp);
+        return new UndoRedoStackState(commands, currentPosition, boundaries, version, timestamp)
+        {
+            InitialStateIsClean = initialStateIsClean,
+        };
     }
     
     private async Task SerializeCommand(BinaryWriter writer, ICommand command)
@@ -294,14 +302,14 @@ Implement automatic session persistence:
 ```csharp
 public class PersistentUndoRedoStack : IDisposable
 {
-    private readonly UndoRedoStack _undoRedoStack;
+    private readonly UndoRedoService _undoRedoStack;
     private readonly string _persistenceFile;
     private readonly Timer _autoSaveTimer;
     
     public PersistentUndoRedoStack(string persistenceFile)
     {
         _persistenceFile = persistenceFile;
-        _undoRedoStack = new UndoRedoStack();
+        _undoRedoStack = UndoRedoService.Create();
         _undoRedoStack.SetSerializer(new JsonUndoRedoSerializer());
         
         // Auto-save every 30 seconds
@@ -311,7 +319,7 @@ public class PersistentUndoRedoStack : IDisposable
         _ = LoadStateAsync();
     }
     
-    public UndoRedoStack UndoRedoStack => _undoRedoStack;
+    public UndoRedoService UndoRedoStack => _undoRedoStack;
     
     private async void AutoSave(object? state)
     {

@@ -18,7 +18,9 @@ public record ChangeMetadata(
 	DateTimeOffset Timestamp,
 	// Always written: 0 is a CLR default, so options that skip defaults would drop it and it would load back as 1
 	[property: JsonIgnore(Condition = JsonIgnoreCondition.Never)] int Size = 1,
-	IReadOnlyDictionary<string, object>? CustomData = null
+	// Read back as plain values rather than JsonElement, so code that casts or pattern-matches them works
+	// the same after a save and load as before it
+	[property: JsonConverter(typeof(CustomDataJsonConverter))] IReadOnlyDictionary<string, object>? CustomData = null
 );
 
 /// <summary>
