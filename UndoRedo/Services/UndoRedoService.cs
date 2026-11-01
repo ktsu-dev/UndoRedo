@@ -211,8 +211,9 @@ public sealed class UndoRedoService(
 		_saveBoundaryManager.CleanupInvalidBoundaries(_stackManager.CurrentPosition);
 		_stackManager.AddCommand(mergedCommand); // Add the merged command
 
-		// The commands the merged one replaced, unless the merger returned one of them
-		List<ICommand> merged = [.. new[] { lastCommand, command }.Where(replaced => !ReferenceEquals(replaced, mergedCommand))];
+		// The commands the merged one replaced, unless the history can still run them through it: the
+		// merger returned one of them, or a composite that holds them
+		List<ICommand> merged = [.. new[] { lastCommand, command }.Where(replaced => !CanReach(mergedCommand, replaced))];
 
 		HandlerErrors errors = new();
 		errors.Raise(CommandExecuted, this, new CommandExecutedEventArgs(mergedCommand, _stackManager.CurrentPosition));
@@ -221,6 +222,14 @@ public sealed class UndoRedoService(
 		OnStateChanged(errors);
 		errors.ThrowIfAny();
 	}
+
+	/// <summary>
+	/// Whether <paramref name="target"/> is <paramref name="command"/> itself or a sub-command of it,
+	/// at any depth of nested composites
+	/// </summary>
+	private static bool CanReach(ICommand command, ICommand target) =>
+		ReferenceEquals(command, target)
+		|| (command is CompositeCommand composite && composite.Commands.Any(sub => CanReach(sub, target)));
 
 	/// <inheritdoc />
 	public int DropOldest(int count)
