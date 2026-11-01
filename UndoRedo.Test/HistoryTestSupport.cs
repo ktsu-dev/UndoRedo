@@ -98,3 +98,33 @@ internal sealed class InsertText(StrongBox<string> buffer, int position, string 
 
 	public override ICommand MergeWith(ICommand other) => new InsertText(buffer, Position, Text + ((InsertText)other).Text);
 }
+
+/// <summary>
+/// An append to a text buffer that merges in place: <see cref="MergeWith"/> folds the next append's
+/// text into this command and returns <c>this</c>, as typing and drag commands commonly do
+/// </summary>
+internal sealed class AppendInPlace(StrongBox<string> buffer, string text) : BaseCommand(ChangeType.Insert, ["text"])
+{
+	public string Text { get; private set; } = text;
+
+	public bool ThrowOnMerge { get; init; }
+
+	public override string Description => $"Append '{Text}'";
+
+	public override void Execute() => buffer.Value += Text;
+
+	public override void Undo() => buffer.Value = buffer.Value[..^Text.Length];
+
+	public override bool CanMergeWith(ICommand other) => other is AppendInPlace;
+
+	public override ICommand MergeWith(ICommand other)
+	{
+		if (((AppendInPlace)other).ThrowOnMerge)
+		{
+			throw new InvalidOperationException("The merge failed");
+		}
+
+		Text += ((AppendInPlace)other).Text;
+		return this;
+	}
+}
