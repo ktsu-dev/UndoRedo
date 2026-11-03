@@ -36,6 +36,87 @@ public sealed class HistoryEventTests
 	}
 
 	[TestMethod]
+	public void ReExecutingAnUndoneCommand_DoesNotReportIt()
+	{
+		StrongBox<int> value = new(0);
+		UndoRedoService service = Service(UndoRedoOptions.Create(autoMerge: false));
+		List<ICommand> discarded = [];
+		service.CommandsDiscarded += (_, e) => discarded.AddRange(e.Commands);
+		DelegateCommand toggle = Increment(value, "toggle");
+
+		service.Execute(toggle);
+		service.Undo();
+		service.Execute(toggle);
+
+		Assert.AreEqual(0, discarded.Count);
+		Assert.AreSame(toggle, service.Commands.Single());
+		service.Undo();
+		Assert.AreEqual(0, value.Value);
+	}
+
+	[TestMethod]
+	public void AnInstanceInSeveralBranchedSlots_IsReportedOnce()
+	{
+		StrongBox<int> value = new(0);
+		UndoRedoService service = Service(UndoRedoOptions.Create(autoMerge: false));
+		List<(ICommand Command, CommandDiscardReason Reason)> discarded = [];
+		service.CommandsDiscarded += (_, e) => discarded.AddRange(e.Commands.Select(command => (command, e.Reason)));
+		DelegateCommand inc = Increment(value);
+
+		service.Execute(inc);
+		service.Execute(inc);
+		service.Undo();
+		service.Undo();
+		service.Execute(Increment(value, "other"));
+
+		CollectionAssert.AreEqual(new (ICommand, CommandDiscardReason)[] { (inc, CommandDiscardReason.Branched) }, discarded);
+	}
+
+	[TestMethod]
+	public void TrimmingOneSlotOfAnInstanceStillInTheHistory_DoesNotReportIt()
+	{
+		StrongBox<int> value = new(0);
+		UndoRedoService service = Service(UndoRedoOptions.Create(maxStackSize: 2, autoMerge: false));
+		List<ICommand> discarded = [];
+		service.CommandsDiscarded += (_, e) => discarded.AddRange(e.Commands);
+		DelegateCommand inc = Increment(value);
+		DelegateCommand x = Increment(value, "x");
+
+		service.Execute(inc);
+		service.Execute(x);
+		service.Execute(inc);
+
+		Assert.AreEqual(0, discarded.Count);
+		CollectionAssert.AreEqual(new ICommand[] { x, inc }, service.Commands.ToList());
+
+		// Once its last slot goes, it is reported, and only then
+		service.Execute(Increment(value, "y"));
+		service.Execute(Increment(value, "z"));
+
+		CollectionAssert.AreEqual(new ICommand[] { x, inc }, discarded);
+	}
+
+	[TestMethod]
+	public void AnInstanceLeavingAsBothBranchedAndTrimmed_IsReportedOnce()
+	{
+		StrongBox<int> value = new(0);
+		UndoRedoService service = Service(UndoRedoOptions.Create(maxStackSize: 2, autoMerge: false));
+		List<ICommand> discarded = [];
+		service.CommandsDiscarded += (_, e) => discarded.AddRange(e.Commands);
+		DelegateCommand inc = Increment(value);
+		DelegateCommand x = Increment(value, "x");
+
+		service.Execute(inc);
+		service.Execute(x);
+		service.Execute(inc);
+		service.Undo();
+		service.Execute(Increment(value, "y"));
+		service.Execute(Increment(value, "z"));
+
+		CollectionAssert.AreEqual(new ICommand[] { inc, x }, discarded);
+	}
+
+	[TestMethod]
 	public void AMerge_ReportsTheCommandsItReplaced()
 	{
 		StrongBox<string> buffer = new(string.Empty);
