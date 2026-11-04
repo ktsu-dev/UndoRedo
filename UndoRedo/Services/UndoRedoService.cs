@@ -216,19 +216,21 @@ public sealed class UndoRedoService(
 
 	private void ExecuteMerged(ICommand lastCommand, ICommand command)
 	{
-		ICommand mergedCommand = _commandMerger.Merge(lastCommand, command);
-
 		// Apply the real state change before touching the stack, so a failure here can never
 		// leave the stack recording a command that was not actually applied. This mirrors the
 		// non-merge path and CompositeCommand.Execute().
+		// Undo before merging: a MergeWith that merges in place and returns `this` changes what
+		// lastCommand would undo, so undoing afterwards would revert changes never applied.
 		// If this Undo throws, nothing has been mutated and the stack is still accurate.
 		lastCommand.Undo();
 
+		ICommand mergedCommand;
+#pragma warning disable CA1031 // Do not catch general exception types
 		try
 		{
+			mergedCommand = _commandMerger.Merge(lastCommand, command);
 			mergedCommand.Execute();
 		}
-#pragma warning disable CA1031 // Do not catch general exception types
 		catch (Exception)
 		{
 			// The merged edit failed, so put the application back where the stack says it is
@@ -252,8 +254,9 @@ public sealed class UndoRedoService(
 		_saveBoundaryManager.CleanupInvalidBoundaries(_stackManager.CurrentPosition);
 		_stackManager.AddCommand(mergedCommand); // Add the merged command
 
-		// The commands the merged one replaced, unless the merger returned one of them
-		List<ICommand> merged = [.. new[] { lastCommand, command }.Where(replaced => !ReferenceEquals(replaced, mergedCommand))];
+		// The commands the merged one replaced, unless the history can still run them through it: the
+		// merger returned one of them, or a composite that holds them
+		List<ICommand> merged = [.. new[] { lastCommand, command }.Where(replaced => !CanReach(mergedCommand, replaced))];
 
 		HandlerErrors errors = new();
 		HashSet<ICommand> reported = new(ReferenceComparer.Instance);
@@ -263,6 +266,14 @@ public sealed class UndoRedoService(
 		OnStateChanged(errors);
 		errors.ThrowIfAny();
 	}
+
+	/// <summary>
+	/// Whether <paramref name="target"/> is <paramref name="command"/> itself or a sub-command of it,
+	/// at any depth of nested composites
+	/// </summary>
+	private static bool CanReach(ICommand command, ICommand target) =>
+		ReferenceEquals(command, target)
+		|| (command is CompositeCommand composite && composite.Commands.Any(sub => CanReach(sub, target)));
 
 	/// <inheritdoc />
 	public int DropOldest(int count)

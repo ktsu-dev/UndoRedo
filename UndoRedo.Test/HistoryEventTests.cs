@@ -117,6 +117,72 @@ public sealed class HistoryEventTests
 	}
 
 	[TestMethod]
+	public void AMergeIntoACompositeHoldingTheOriginals_ReportsNeither()
+	{
+		UndoRedoService service = Service(UndoRedoOptions.Create(autoMerge: true));
+		List<ICommand> discarded = [];
+		service.CommandsDiscarded += (_, e) =>
+		{
+			foreach (ICommand command in e.Commands)
+			{
+				discarded.Add(command);
+				(command as Stroke)?.Release();
+			}
+		};
+		Stroke a = new("a", wrap: true);
+		Stroke b = new("b", wrap: true);
+		service.Execute(a);
+
+		service.Execute(b);
+
+		Assert.AreEqual(1, service.CommandCount, "The strokes should merge into one composite");
+		Assert.IsEmpty(discarded, "Both strokes are still undone and redone through the composite");
+		service.Undo();
+		service.Redo();
+		Assert.IsFalse(a.Released);
+		Assert.IsFalse(b.Released);
+	}
+
+	[TestMethod]
+	public void AMergeIntoAnUnrelatedNewCommand_ReportsBothOriginals()
+	{
+		UndoRedoService service = Service(UndoRedoOptions.Create(autoMerge: true));
+		List<(ICommand Command, CommandDiscardReason Reason)> discarded = [];
+		service.CommandsDiscarded += (_, e) => discarded.AddRange(e.Commands.Select(command => (command, e.Reason)));
+		Stroke a = new("a", wrap: false);
+		Stroke b = new("b", wrap: false);
+		service.Execute(a);
+
+		service.Execute(b);
+
+		CollectionAssert.AreEqual(
+			new (ICommand, CommandDiscardReason)[] { (a, CommandDiscardReason.Merged), (b, CommandDiscardReason.Merged) },
+			discarded);
+	}
+
+	/// <summary>
+	/// A stroke that merges with the next one, either by wrapping both in a composite or by replacing
+	/// them with a fresh stroke; running it after it was released throws
+	/// </summary>
+	private sealed class Stroke(string name, bool wrap) : BaseCommand(ChangeType.Modify, [name])
+	{
+		public bool Released { get; private set; }
+
+		public override string Description => name;
+
+		public void Release() => Released = true;
+
+		public override void Execute() => ObjectDisposedException.ThrowIf(Released, name);
+
+		public override void Undo() => ObjectDisposedException.ThrowIf(Released, name);
+
+		public override bool CanMergeWith(ICommand other) => other is Stroke;
+
+		public override ICommand MergeWith(ICommand other) =>
+			wrap ? new CompositeCommand("strokes", [this, other]) : new Stroke($"{name}+{other.Description}", wrap: false);
+	}
+
+	[TestMethod]
 	public void AMerge_ReportsTheCommandsItReplaced()
 	{
 		StrongBox<string> buffer = new(string.Empty);
