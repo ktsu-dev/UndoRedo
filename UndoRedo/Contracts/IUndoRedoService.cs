@@ -12,11 +12,17 @@ public interface IUndoRedoService
 	/// <summary>
 	/// Gets whether there are commands available to undo
 	/// </summary>
+	/// <remarks>
+	/// <see langword="false"/> while the current command is an <see cref="IPlaceholderCommand"/>, which can't be undone.
+	/// </remarks>
 	public bool CanUndo { get; }
 
 	/// <summary>
 	/// Gets whether there are commands available to redo
 	/// </summary>
+	/// <remarks>
+	/// <see langword="false"/> while the next command is an <see cref="IPlaceholderCommand"/>, which can't be redone.
+	/// </remarks>
 	public bool CanRedo { get; }
 
 	/// <summary>
@@ -47,6 +53,11 @@ public interface IUndoRedoService
 	/// <summary>
 	/// Fired when a command is executed
 	/// </summary>
+	/// <remarks>
+	/// Every event is raised after the history has changed. A handler that throws neither stops the other
+	/// handlers nor undoes the change: the operation finishes and then throws
+	/// <see cref="UndoRedoHandlerException"/> with what each failing handler threw.
+	/// </remarks>
 	public event EventHandler<CommandExecutedEventArgs>? CommandExecuted;
 
 	/// <summary>
@@ -71,6 +82,17 @@ public interface IUndoRedoService
 	public event EventHandler<CommandsDroppedEventArgs>? CommandsDropped;
 
 	/// <summary>
+	/// Fired whenever commands leave the history, whatever the reason: trimmed as
+	/// <see cref="CommandsDropped"/> reports, thrown away when a new edit follows an undo, replaced by a
+	/// merge, cleared, or replaced by a restored or loaded history
+	/// </summary>
+	/// <remarks>
+	/// Each command is reported once, and a command still in the history never is. Subscribe to this to
+	/// release resources commands hold for undo or redo, such as bitmaps, buffers or file handles.
+	/// </remarks>
+	public event EventHandler<CommandsDiscardedEventArgs>? CommandsDiscarded;
+
+	/// <summary>
 	/// Fired once after any operation that changes the history: execute (including a merge), undo, redo,
 	/// marking a save point, clearing, and a successful load or restore. Subscribe to this one event to
 	/// keep Undo/Redo buttons and the unsaved-changes indicator in sync.
@@ -80,7 +102,13 @@ public interface IUndoRedoService
 	/// <summary>
 	/// Executes a command and adds it to the stack
 	/// </summary>
+	/// <remarks>
+	/// With auto-merge on, the command is merged into the current one when they can merge, unless the
+	/// current one ends at a save boundary or was reached by undo, redo, reverting, clearing or restoring
+	/// rather than by executing it: those are states the user can return to with one undo.
+	/// </remarks>
 	/// <param name="command">The command to execute</param>
+	/// <exception cref="UndoRedoHandlerException">An event handler threw after the command was executed and recorded</exception>
 	public void Execute(ICommand command);
 
 	/// <summary>
@@ -146,18 +174,32 @@ public interface IUndoRedoService
 	/// <summary>
 	/// Clears the entire stack and all save boundaries
 	/// </summary>
+	/// <remarks>
+	/// The document is unchanged, so <see cref="HasUnsavedChanges"/> stays what it was: true if there were
+	/// unsaved changes, false if there weren't.
+	/// </remarks>
 	public void Clear();
 
 	/// <summary>
 	/// Gets commands that would be undone to reach the specified save boundary
 	/// </summary>
+	/// <remarks>
+	/// Empty when the boundary is at or after the current position, where
+	/// <see cref="UndoToSaveBoundaryAsync"/> redoes rather than undoes.
+	/// </remarks>
 	/// <param name="saveBoundary">The target save boundary</param>
 	/// <returns>Commands that would be undone</returns>
 	public IEnumerable<ICommand> GetCommandsToUndo(SaveBoundary saveBoundary);
 
 	/// <summary>
-	/// Undoes commands until reaching the specified save boundary
+	/// Undoes commands until reaching the specified save boundary, or redoes them when the user has undone
+	/// back past it, so the history lands on the saved state either way
 	/// </summary>
+	/// <remarks>
+	/// Returns <see langword="false"/> without changing anything when the boundary is no longer in the
+	/// history, when the current position is already on it, or when an <see cref="IPlaceholderCommand"/> lies
+	/// between here and there. <see cref="CommandUndone"/> or <see cref="CommandRedone"/> is raised for each step.
+	/// </remarks>
 	/// <param name="saveBoundary">The target save boundary</param>
 	/// <param name="navigateToLastChange">Whether to navigate to the last change</param>
 	/// <param name="cancellationToken">Cancellation token</param>

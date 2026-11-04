@@ -14,7 +14,7 @@ using ktsu.UndoRedo.Models;
 /// Initializes a new instance of the JsonUndoRedoSerializer
 /// </remarks>
 /// <param name="options">Custom JSON serializer options</param>
-public class JsonUndoRedoSerializer(JsonSerializerOptions? options = null) : IUndoRedoSerializer
+public class JsonUndoRedoSerializer(JsonSerializerOptions? options = null) : IUndoRedoStateSerializer
 {
 	private static readonly JsonSerializerOptions DefaultOptions = new()
 	{
@@ -37,24 +37,40 @@ public class JsonUndoRedoSerializer(JsonSerializerOptions? options = null) : IUn
 	}
 
 	/// <inheritdoc />
-	public async Task<byte[]> SerializeAsync(
+	public Task<byte[]> SerializeAsync(
 		IReadOnlyList<ICommand> commands,
 		int currentPosition,
 		IReadOnlyList<SaveBoundary> saveBoundaries,
 		bool initialStateIsClean,
-		CancellationToken cancellationToken = default)
-	{
-		List<SerializableCommand> serializableCommands = [.. commands.Select(ConvertToSerializableCommand)];
-		SerializableStackState state = new()
+		CancellationToken cancellationToken = default) =>
+		WriteAsync(new SerializableStackState
 		{
-			Commands = serializableCommands,
+			Commands = [.. commands.Select(ConvertToSerializableCommand)],
 			CurrentPosition = currentPosition,
 			SaveBoundaries = [.. saveBoundaries],
 			InitialStateIsClean = initialStateIsClean,
 			FormatVersion = FormatVersion,
 			Timestamp = DateTime.UtcNow
-		};
+		}, cancellationToken);
 
+	/// <inheritdoc />
+	public Task<byte[]> SerializeAsync(UndoRedoStackState state, CancellationToken cancellationToken = default)
+	{
+		Ensure.NotNull(state);
+		return WriteAsync(new SerializableStackState
+		{
+			Commands = [.. state.Commands.Select(ConvertToSerializableCommand)],
+			CurrentPosition = state.CurrentPosition,
+			SaveBoundaries = [.. state.SaveBoundaries],
+			InitialStateIsClean = state.InitialStateIsClean,
+			LatestSaveBoundaryIndex = state.LatestSaveBoundaryIndex,
+			FormatVersion = FormatVersion,
+			Timestamp = DateTime.UtcNow
+		}, cancellationToken);
+	}
+
+	private async Task<byte[]> WriteAsync(SerializableStackState state, CancellationToken cancellationToken)
+	{
 		using MemoryStream stream = new();
 		await JsonSerializer.SerializeAsync(stream, state, _options, cancellationToken).ConfigureAwait(false);
 		return stream.ToArray();
@@ -85,6 +101,7 @@ public class JsonUndoRedoSerializer(JsonSerializerOptions? options = null) : IUn
 			serializableState.Timestamp)
 		{
 			InitialStateIsClean = serializableState.InitialStateIsClean,
+			LatestSaveBoundaryIndex = serializableState.LatestSaveBoundaryIndex,
 		};
 	}
 
@@ -111,7 +128,12 @@ public class JsonUndoRedoSerializer(JsonSerializerOptions? options = null) : IUn
 			throw new InvalidOperationException("Stack state contains a null save boundary");
 		}
 
-		foreach (SerializableCommand? command in state.Commands)
+		ValidateCommands(state.Commands);
+	}
+
+	private static void ValidateCommands(IEnumerable<SerializableCommand?> commands)
+	{
+		foreach (SerializableCommand? command in commands)
 		{
 			if (command is null)
 			{
@@ -126,6 +148,11 @@ public class JsonUndoRedoSerializer(JsonSerializerOptions? options = null) : IUn
 			if (command.Metadata.AffectedItems is null)
 			{
 				throw new InvalidOperationException($"Command '{command.Description}' has no affected items in its metadata");
+			}
+
+			if (command.Children is not null)
+			{
+				ValidateCommands(command.Children);
 			}
 		}
 	}
@@ -144,6 +171,20 @@ public class JsonUndoRedoSerializer(JsonSerializerOptions? options = null) : IUn
 				NavigationContext = placeholder.NavigationContext,
 				Metadata = placeholder.Metadata,
 				Data = placeholder.OriginalData,
+				Children = placeholder.OriginalChildren,
+			};
+		}
+
+		// A composite is written as its sub-commands, so it can be rebuilt when every one of them can
+		if (command is CompositeCommand composite)
+		{
+			return new SerializableCommand
+			{
+				Type = typeof(CompositeCommand).AssemblyQualifiedName ?? typeof(CompositeCommand).FullName!,
+				Description = composite.Description,
+				NavigationContext = composite.NavigationContext,
+				Metadata = composite.Metadata,
+				Children = [.. composite.Commands.Select(ConvertToSerializableCommand)],
 			};
 		}
 
@@ -161,6 +202,11 @@ public class JsonUndoRedoSerializer(JsonSerializerOptions? options = null) : IUn
 
 	private static ICommand ConvertFromSerializableCommand(SerializableCommand serializableCommand)
 	{
+		if (serializableCommand.Children is not null)
+		{
+			return ConvertFromSerializableComposite(serializableCommand);
+		}
+
 		// This is a simplified approach - real implementations would need a factory pattern
 		// or registry to recreate commands from serialized data
 		// A null Data is what ConvertToSerializableCommand writes for a command that is not an
@@ -238,8 +284,28 @@ public class JsonUndoRedoSerializer(JsonSerializerOptions? options = null) : IUn
 		return CreatePlaceholder(serializableCommand);
 	}
 
+	/// <summary>
+	/// Rebuilds a composite from its sub-commands, or makes it a placeholder when any of them is one, so a
+	/// rebuilt composite never silently skips part of its work
+	/// </summary>
+	private static ICommand ConvertFromSerializableComposite(SerializableCommand serializableCommand)
+	{
+		List<ICommand> children = [.. serializableCommand.Children!.Select(ConvertFromSerializableCommand)];
+		if (children.Count == 0 || children.Any(child => child is IPlaceholderCommand) || ResolveCommandType(serializableCommand.Type) != typeof(CompositeCommand))
+		{
+			return CreatePlaceholder(serializableCommand);
+		}
+
+		CompositeCommand composite = new(serializableCommand.Description, children, serializableCommand.NavigationContext);
+		composite.RestoreSerializedState(serializableCommand.NavigationContext, serializableCommand.Metadata);
+		return composite;
+	}
+
 	private static PlaceholderCommand CreatePlaceholder(SerializableCommand serializableCommand) =>
-		new(serializableCommand.Type, serializableCommand.Description, serializableCommand.Data, serializableCommand.NavigationContext, serializableCommand.Metadata);
+		new(serializableCommand.Type, serializableCommand.Description, serializableCommand.Data, serializableCommand.NavigationContext, serializableCommand.Metadata)
+		{
+			OriginalChildren = serializableCommand.Children,
+		};
 
 	private static Type? ResolveCommandType(string typeName)
 	{
@@ -258,13 +324,16 @@ public class JsonUndoRedoSerializer(JsonSerializerOptions? options = null) : IUn
 	/// <summary>
 	/// Serializable representation of a command
 	/// </summary>
-	private sealed class SerializableCommand
+	internal sealed class SerializableCommand
 	{
 		public string Type { get; set; } = string.Empty;
 		public string Description { get; set; } = string.Empty;
 		public string? NavigationContext { get; set; }
 		public ChangeMetadata Metadata { get; set; } = null!;
 		public string? Data { get; set; }
+
+		// A composite's sub-commands; null for every other command
+		public List<SerializableCommand>? Children { get; set; }
 	}
 
 	/// <summary>
@@ -280,6 +349,9 @@ public class JsonUndoRedoSerializer(JsonSerializerOptions? options = null) : IUn
 		// written, so options that skip defaults cannot drop a false and have it load back as true
 		[JsonIgnore(Condition = JsonIgnoreCondition.Never)]
 		public bool InitialStateIsClean { get; set; } = true;
+
+		// Null in data saved before this field existed, which restores the last boundary as the latest
+		public int? LatestSaveBoundaryIndex { get; set; }
 		public string FormatVersion { get; set; } = string.Empty;
 		public DateTime Timestamp { get; set; }
 	}
@@ -316,7 +388,7 @@ public interface ISerializableCommand
 /// <param name="originalData">The command data as it was saved, if any</param>
 /// <param name="navigationContext">The navigation context as it was saved</param>
 /// <param name="metadata">The metadata as it was saved</param>
-internal sealed class PlaceholderCommand(string originalType, string originalDescription, string? originalData, string? navigationContext, ChangeMetadata metadata) : BaseCommand(metadata.ChangeType, metadata.AffectedItems, navigationContext)
+internal sealed class PlaceholderCommand(string originalType, string originalDescription, string? originalData, string? navigationContext, ChangeMetadata metadata) : BaseCommand(metadata.ChangeType, metadata.AffectedItems, navigationContext), IPlaceholderCommand
 {
 	/// <summary>
 	/// The command type name as it was saved, written back on the next save
@@ -332,6 +404,11 @@ internal sealed class PlaceholderCommand(string originalType, string originalDes
 	/// The command data as it was saved, written back on the next save
 	/// </summary>
 	public string? OriginalData { get; } = originalData;
+
+	/// <summary>
+	/// The sub-commands of a composite as they were saved, written back on the next save
+	/// </summary>
+	public List<JsonUndoRedoSerializer.SerializableCommand>? OriginalChildren { get; init; }
 
 	public override string Description => $"[Placeholder] {OriginalDescription}";
 

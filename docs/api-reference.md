@@ -672,7 +672,7 @@ var options = UndoRedoOptions.Create(
     navigationTimeout: TimeSpan.FromSeconds(10)
 );
 
-var undoRedoStack = new UndoRedoStack(options);
+UndoRedoService undoRedoStack = UndoRedoService.Create(options);
 ```
 
 ### ChangeMetadata

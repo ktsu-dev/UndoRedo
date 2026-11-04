@@ -71,3 +71,60 @@ public sealed class CommandsDroppedEventArgs(IReadOnlyList<ICommand> commands, i
 	/// </summary>
 	public int Position { get; } = position;
 }
+
+/// <summary>
+/// Why commands left the history
+/// </summary>
+public enum CommandDiscardReason
+{
+	/// <summary>
+	/// The oldest commands were dropped, by <c>DropOldest</c> or by <c>UndoRedoOptions.MaxStackSize</c>
+	/// </summary>
+	Trimmed,
+
+	/// <summary>
+	/// A new command was executed after an undo, so the commands that could have been redone were thrown away
+	/// </summary>
+	Branched,
+
+	/// <summary>
+	/// Two commands were merged into one, and these are the ones the merged command replaced
+	/// </summary>
+	Merged,
+
+	/// <summary>
+	/// The history was cleared
+	/// </summary>
+	Cleared,
+
+	/// <summary>
+	/// The history was replaced by a restored or loaded one that does not contain these commands
+	/// </summary>
+	Replaced,
+}
+
+/// <summary>
+/// Event args for when commands leave the history for any reason
+/// </summary>
+/// <param name="commands">The discarded commands, in the order they were in the history</param>
+/// <param name="reason">Why they were discarded</param>
+/// <param name="position">The current position after they were discarded</param>
+public sealed class CommandsDiscardedEventArgs(IReadOnlyList<ICommand> commands, CommandDiscardReason reason, int position) : EventArgs
+{
+	/// <summary>
+	/// The discarded commands. None of them can be undone or redone any more, so anything they held for
+	/// undo or redo can be released. Each command is reported once, and a command still in the history
+	/// is never reported.
+	/// </summary>
+	public IReadOnlyList<ICommand> Commands { get; } = commands;
+
+	/// <summary>
+	/// Why the commands were discarded
+	/// </summary>
+	public CommandDiscardReason Reason { get; } = reason;
+
+	/// <summary>
+	/// The current position in the undo/redo stack after the commands were discarded
+	/// </summary>
+	public int Position { get; } = position;
+}

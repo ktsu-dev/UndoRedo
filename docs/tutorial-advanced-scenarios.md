@@ -125,20 +125,21 @@ public class TextCommand : BaseCommand, ISerializableCommand
     {
         if (other is not TextCommand textCmd) return false;
         
-        // Merge consecutive character insertions
+        // Merge each typed character into the run before it. Only the incoming edit must be a single
+        // character: this command may already hold several from earlier merges.
         if (ChangeType == TextChangeType.Insert && 
             textCmd.ChangeType == TextChangeType.Insert &&
             textCmd.Position == Position + NewText.Length &&
-            NewText.Length == 1 && textCmd.NewText.Length == 1)
+            textCmd.NewText.Length == 1)
         {
             return true;
         }
         
-        // Merge consecutive character deletions
+        // Merge consecutive Backspace deletions the same way
         if (ChangeType == TextChangeType.Delete && 
             textCmd.ChangeType == TextChangeType.Delete &&
             textCmd.Position + textCmd.OldText.Length == Position &&
-            OldText.Length == 1 && textCmd.OldText.Length == 1)
+            textCmd.OldText.Length == 1)
         {
             return true;
         }
@@ -217,7 +218,7 @@ public class TextCommand : BaseCommand, ISerializableCommand
 ```csharp
 public class TextEditorWithUndo : ITextEditor, IDisposable
 {
-    private readonly UndoRedoStack _undoRedoStack;
+    private readonly UndoRedoService _undoRedoStack;
     private readonly string _persistenceFile;
     private string _text = "";
     private int _caretPosition = 0;
@@ -225,7 +226,7 @@ public class TextEditorWithUndo : ITextEditor, IDisposable
     
     public TextEditorWithUndo(string? persistenceFile = null)
     {
-        _undoRedoStack = new UndoRedoStack();
+        _undoRedoStack = UndoRedoService.Create();
         _undoRedoStack.SetSerializer(new JsonUndoRedoSerializer());
         
         if (!string.IsNullOrEmpty(persistenceFile))
@@ -844,14 +845,14 @@ public class SetVisibilityCommand : BaseCommand
 ```csharp
 public class GraphicsEditor
 {
-    private readonly UndoRedoStack _undoRedoStack;
+    private readonly UndoRedoService _undoRedoStack;
     private readonly ICanvas _canvas;
     private readonly List<string> _selectedShapeIds = new();
     
     public GraphicsEditor(ICanvas canvas)
     {
         _canvas = canvas;
-        _undoRedoStack = new UndoRedoStack();
+        _undoRedoStack = UndoRedoService.Create();
         _undoRedoStack.SetSerializer(new JsonUndoRedoSerializer());
     }
     
