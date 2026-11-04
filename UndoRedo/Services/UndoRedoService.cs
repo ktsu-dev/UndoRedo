@@ -733,7 +733,27 @@ public sealed class UndoRedoService(
 			return false;
 		}
 
-		OnCommandsDiscarded(errors, replaced, CommandDiscardReason.Replaced);
+		// A history saved under a larger limit holds more than this service keeps. Trim it as Execute
+		// would, but only from the commands at or before the current position: those after it are the
+		// redo history the state chose to keep, and RemoveOldest only removes applied commands.
+		List<ICommand> dropped = [];
+		if (_options.MaxStackSize > 0 && _stackManager.Commands.Count > _options.MaxStackSize)
+		{
+			int drop = Math.Min(_stackManager.Commands.Count - _options.MaxStackSize, _stackManager.CurrentPosition + 1);
+			if (drop > 0)
+			{
+				dropped = RemoveOldest(drop);
+			}
+		}
+
+		HashSet<ICommand> reported = new(ReferenceComparer.Instance);
+		OnCommandsDiscarded(errors, replaced, CommandDiscardReason.Replaced, reported);
+		if (dropped.Count > 0)
+		{
+			errors.Raise(CommandsDropped, this, new CommandsDroppedEventArgs(dropped, _stackManager.CurrentPosition));
+			OnCommandsDiscarded(errors, dropped, CommandDiscardReason.Trimmed, reported);
+		}
+
 		OnStateChanged(errors);
 		errors.ThrowIfAny();
 		return true;

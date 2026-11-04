@@ -252,6 +252,12 @@ public interface IUndoRedoService
 	/// <summary>
 	/// Restores the stack from a given state
 	/// </summary>
+	/// <remarks>
+	/// A state holding more commands than <see cref="UndoRedoOptions.MaxStackSize"/> is trimmed to it
+	/// from the oldest end, as <see cref="Execute"/> would trim, and the trimmed commands are reported
+	/// through <see cref="CommandsDropped"/> and <see cref="CommandsDiscarded"/>. Only commands at or
+	/// before the restored position are trimmed, so the redo history is always kept whole.
+	/// </remarks>
 	/// <param name="state">The state to restore</param>
 	/// <returns>True if restoration was successful</returns>
 	public bool RestoreFromState(UndoRedoStackState state);
