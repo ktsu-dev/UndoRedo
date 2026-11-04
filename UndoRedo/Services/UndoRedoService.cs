@@ -93,14 +93,54 @@ public sealed class UndoRedoService(
 	private void OnStateChanged(HandlerErrors errors) => errors.Raise(StateChanged, this, EventArgs.Empty);
 
 	/// <summary>
-	/// Raises <see cref="CommandsDiscarded"/> for <paramref name="commands"/>, if there are any
+	/// Raises <see cref="CommandsDiscarded"/> for those of <paramref name="commands"/> that have really
+	/// left the history, if there are any
 	/// </summary>
-	private void OnCommandsDiscarded(HandlerErrors errors, List<ICommand> commands, CommandDiscardReason reason)
+	/// <remarks>
+	/// One command instance can fill more than one slot of the history, because nothing stops a caller
+	/// executing the same instance again. Removing one slot then leaves the instance in another, and a
+	/// handler that disposed it would break the next Undo or Redo. So a command is reported only once no
+	/// slot holds it any more, and only once per operation, however many of its slots left.
+	/// </remarks>
+	/// <param name="errors">Collects exceptions thrown by handlers</param>
+	/// <param name="commands">The commands removed from their slots</param>
+	/// <param name="reason">Why they were removed</param>
+	/// <param name="reported">
+	/// The commands already reported by this operation, for an operation that raises the event more than
+	/// once. Those reported now are added to it.
+	/// </param>
+	private void OnCommandsDiscarded(HandlerErrors errors, List<ICommand> commands, CommandDiscardReason reason, HashSet<ICommand>? reported = null)
 	{
-		if (commands.Count > 0)
+		if (commands.Count == 0)
 		{
-			errors.Raise(CommandsDiscarded, this, new CommandsDiscardedEventArgs(commands, reason, _stackManager.CurrentPosition));
+			return;
 		}
+
+		HashSet<ICommand> unavailable = new(_stackManager.Commands, ReferenceComparer.Instance);
+		if (reported is not null)
+		{
+			unavailable.UnionWith(reported);
+		}
+
+		// Add() is false for a command still in the history, already reported, or met earlier in this list
+		List<ICommand> leaving = [.. commands.Where(unavailable.Add)];
+		reported?.UnionWith(leaving);
+		if (leaving.Count > 0)
+		{
+			errors.Raise(CommandsDiscarded, this, new CommandsDiscardedEventArgs(leaving, reason, _stackManager.CurrentPosition));
+		}
+	}
+
+	/// <summary>
+	/// Compares commands by identity, whatever equality a command type defines for itself
+	/// </summary>
+	private sealed class ReferenceComparer : IEqualityComparer<ICommand>
+	{
+		public static readonly ReferenceComparer Instance = new();
+
+		public bool Equals(ICommand? x, ICommand? y) => ReferenceEquals(x, y);
+
+		public int GetHashCode(ICommand obj) => System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(obj);
 	}
 
 	private ICommand? NextCommand()
@@ -161,12 +201,13 @@ public sealed class UndoRedoService(
 		}
 
 		HandlerErrors errors = new();
+		HashSet<ICommand> reported = new(ReferenceComparer.Instance);
 		errors.Raise(CommandExecuted, this, new CommandExecutedEventArgs(command, _stackManager.CurrentPosition));
-		OnCommandsDiscarded(errors, branched, CommandDiscardReason.Branched);
+		OnCommandsDiscarded(errors, branched, CommandDiscardReason.Branched, reported);
 		if (dropped.Count > 0)
 		{
 			errors.Raise(CommandsDropped, this, new CommandsDroppedEventArgs(dropped, _stackManager.CurrentPosition));
-			OnCommandsDiscarded(errors, dropped, CommandDiscardReason.Trimmed);
+			OnCommandsDiscarded(errors, dropped, CommandDiscardReason.Trimmed, reported);
 		}
 
 		OnStateChanged(errors);
@@ -218,9 +259,10 @@ public sealed class UndoRedoService(
 		List<ICommand> merged = [.. new[] { lastCommand, command }.Where(replaced => !CanReach(mergedCommand, replaced))];
 
 		HandlerErrors errors = new();
+		HashSet<ICommand> reported = new(ReferenceComparer.Instance);
 		errors.Raise(CommandExecuted, this, new CommandExecutedEventArgs(mergedCommand, _stackManager.CurrentPosition));
-		OnCommandsDiscarded(errors, branched, CommandDiscardReason.Branched);
-		OnCommandsDiscarded(errors, merged, CommandDiscardReason.Merged);
+		OnCommandsDiscarded(errors, branched, CommandDiscardReason.Branched, reported);
+		OnCommandsDiscarded(errors, merged, CommandDiscardReason.Merged, reported);
 		OnStateChanged(errors);
 		errors.ThrowIfAny();
 	}
