@@ -210,4 +210,36 @@ public sealed class HistoryRegressionTests
 
 		Assert.IsFalse(restored.HasUnsavedChanges);
 	}
+
+	[TestMethod]
+	public void AMergeThatMergesInPlace_UndoesAndRedoesTheWholeMergedEdit()
+	{
+		StrongBox<string> buffer = new(string.Empty);
+		UndoRedoService service = Service(AutoMerge);
+		service.Execute(new AppendInPlace(buffer, "a"));
+
+		service.Execute(new AppendInPlace(buffer, "b"));
+
+		Assert.AreEqual("ab", buffer.Value);
+		Assert.AreEqual(1, service.CommandCount, "The two appends should merge into one command");
+		service.Undo();
+		Assert.AreEqual(string.Empty, buffer.Value);
+		service.Redo();
+		Assert.AreEqual("ab", buffer.Value);
+	}
+
+	[TestMethod]
+	public void AMergeThatThrows_LeavesTheDocumentMatchingTheStack()
+	{
+		StrongBox<string> buffer = new(string.Empty);
+		UndoRedoService service = Service(AutoMerge);
+		service.Execute(new AppendInPlace(buffer, "a"));
+
+		Assert.ThrowsExactly<InvalidOperationException>(() => service.Execute(new AppendInPlace(buffer, "b") { ThrowOnMerge = true }));
+
+		Assert.AreEqual("a", buffer.Value, "The undone command should be applied again when the merge fails");
+		Assert.AreEqual(1, service.CommandCount);
+		service.Undo();
+		Assert.AreEqual(string.Empty, buffer.Value);
+	}
 }
