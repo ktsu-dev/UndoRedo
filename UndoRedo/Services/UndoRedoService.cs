@@ -2,6 +2,7 @@
 
 namespace ktsu.UndoRedo.Core.Services;
 
+using System.Runtime.ExceptionServices;
 using System.Text.Json;
 using ktsu.UndoRedo.Contracts;
 using ktsu.UndoRedo.Models;
@@ -447,6 +448,7 @@ public sealed class UndoRedoService(
 		_mergeChainBroken = true;
 		HandlerErrors errors = new();
 		ICommand? lastCommand = null;
+		Exception? commandFailure = null;
 		try
 		{
 			foreach (ICommand command in path)
@@ -468,13 +470,24 @@ public sealed class UndoRedoService(
 				lastCommand = command;
 			}
 		}
-		finally
+#pragma warning disable CA1031 // Do not catch general exception types
+		catch (Exception ex)
 		{
-			// Once for the whole walk, including the commands moved past before one that failed
-			if (lastCommand != null)
-			{
-				OnStateChanged(errors);
-			}
+			// Thrown below, once StateChanged has run, together with what the handlers of the steps
+			// already taken threw, so a command failure can't hide a handler failure
+			commandFailure = ex;
+		}
+#pragma warning restore CA1031 // Do not catch general exception types
+
+		// Once for the whole walk, including the commands moved past before one that failed
+		if (lastCommand != null)
+		{
+			OnStateChanged(errors);
+		}
+
+		if (commandFailure != null)
+		{
+			errors.ThrowWithCommandFailure(commandFailure);
 		}
 
 		if (navigateToLastChange && lastCommand != null)
@@ -774,6 +787,8 @@ public sealed class UndoRedoService(
 	/// </summary>
 	private sealed class HandlerErrors
 	{
+		private const string CommandAndHandlersFailedMessage = "A command failed partway through the operation, and one or more event handlers of the steps before it threw.";
+
 		private List<Exception>? _exceptions;
 
 		public void Raise<TEventArgs>(EventHandler<TEventArgs>? handler, object sender, TEventArgs args)
@@ -811,6 +826,22 @@ public sealed class UndoRedoService(
 			{
 				throw new UndoRedoHandlerException(_exceptions);
 			}
+		}
+
+		/// <summary>
+		/// Rethrows a command's failure unchanged when no handler threw, or throws an
+		/// <see cref="AggregateException"/> holding the command's failure first and then what each failing
+		/// handler threw
+		/// </summary>
+		/// <param name="commandFailure">What the command threw</param>
+		public void ThrowWithCommandFailure(Exception commandFailure)
+		{
+			if (_exceptions != null)
+			{
+				throw new AggregateException(CommandAndHandlersFailedMessage, _exceptions.Prepend(commandFailure));
+			}
+
+			ExceptionDispatchInfo.Capture(commandFailure).Throw();
 		}
 
 		private void Invoke(Action handler)
