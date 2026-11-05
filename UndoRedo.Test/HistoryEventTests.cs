@@ -287,6 +287,91 @@ public sealed class HistoryEventTests
 	}
 
 	[TestMethod]
+	public async Task ACommandFailure_DuringARevert_StillReportsTheHandlerFailuresBeforeIt()
+	{
+		StrongBox<int> value = new(0);
+		bool fail = false;
+		UndoRedoService service = Service(new UndoRedoOptions(AutoMergeCommands: false));
+		service.MarkAsSaved("s0");
+		SaveBoundary boundary = service.SaveBoundaries[0];
+		service.Execute(new DelegateCommand("bad", () => value.Value++, () =>
+		{
+			if (fail)
+			{
+				throw new InvalidOperationException("undo failed");
+			}
+
+			value.Value--;
+		}));
+		service.Execute(Increment(value, "ok"));
+		int stateChanges = 0;
+		service.StateChanged += (_, _) => stateChanges++;
+		service.CommandUndone += (_, _) => throw new NotSupportedException("handler boom");
+		fail = true;
+
+		AggregateException thrown = await Assert.ThrowsExactlyAsync<AggregateException>(() => service.UndoToSaveBoundaryAsync(boundary, false)).ConfigureAwait(false);
+
+		Assert.HasCount(2, thrown.InnerExceptions);
+		Assert.IsInstanceOfType<InvalidOperationException>(thrown.InnerExceptions[0], "The command's failure comes first");
+		Assert.AreEqual("undo failed", thrown.InnerExceptions[0].Message);
+		Assert.IsInstanceOfType<NotSupportedException>(thrown.InnerExceptions[1], "The handler failure from the step that succeeded is kept");
+		Assert.AreEqual(0, service.CurrentPosition, "The position stays where the failed command stopped");
+		Assert.AreEqual(1, value.Value);
+		Assert.AreEqual(1, stateChanges, "StateChanged is still raised once for the walk");
+	}
+
+	[TestMethod]
+	public async Task ACommandFailure_DuringARedoToTheSavePoint_StillReportsTheHandlerFailuresBeforeIt()
+	{
+		StrongBox<int> value = new(0);
+		bool fail = false;
+		UndoRedoService service = Service(new UndoRedoOptions(AutoMergeCommands: false));
+		service.Execute(Increment(value, "ok"));
+		service.Execute(new DelegateCommand("bad", () =>
+		{
+			if (fail)
+			{
+				throw new InvalidOperationException("redo failed");
+			}
+
+			value.Value++;
+		}, () => value.Value--));
+		service.MarkAsSaved("s2");
+		SaveBoundary boundary = service.SaveBoundaries[0];
+		await service.UndoAsync(false).ConfigureAwait(false);
+		await service.UndoAsync(false).ConfigureAwait(false);
+		service.CommandRedone += (_, _) => throw new NotSupportedException("handler boom");
+		service.StateChanged += (_, _) => throw new FormatException("state boom");
+		fail = true;
+
+		AggregateException thrown = await Assert.ThrowsExactlyAsync<AggregateException>(() => service.UndoToSaveBoundaryAsync(boundary, false)).ConfigureAwait(false);
+
+		Assert.HasCount(3, thrown.InnerExceptions);
+		Assert.IsInstanceOfType<InvalidOperationException>(thrown.InnerExceptions[0]);
+		Assert.IsInstanceOfType<NotSupportedException>(thrown.InnerExceptions[1]);
+		Assert.IsInstanceOfType<FormatException>(thrown.InnerExceptions[2]);
+		Assert.AreEqual(0, service.CurrentPosition);
+		Assert.AreEqual(1, value.Value);
+	}
+
+	[TestMethod]
+	public async Task ACommandFailure_DuringARevert_WithNoHandlerFailures_IsThrownUnwrapped()
+	{
+		StrongBox<int> value = new(0);
+		UndoRedoService service = Service(new UndoRedoOptions(AutoMergeCommands: false));
+		service.MarkAsSaved("s0");
+		SaveBoundary boundary = service.SaveBoundaries[0];
+		service.Execute(new DelegateCommand("bad", () => value.Value++, () => throw new InvalidOperationException("undo failed")));
+		service.Execute(Increment(value, "ok"));
+		service.CommandUndone += (_, _) => { };
+
+		InvalidOperationException thrown = await Assert.ThrowsExactlyAsync<InvalidOperationException>(() => service.UndoToSaveBoundaryAsync(boundary, false)).ConfigureAwait(false);
+
+		Assert.AreEqual("undo failed", thrown.Message);
+		Assert.AreEqual(0, service.CurrentPosition);
+	}
+
+	[TestMethod]
 	public void AThrowingHandler_AfterExecute_LeavesTheCommandAppliedAndSaysSo()
 	{
 		StrongBox<int> value = new(0);
