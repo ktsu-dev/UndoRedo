@@ -100,7 +100,8 @@ public sealed class UndoRedoService(
 	/// One command instance can fill more than one slot of the history, because nothing stops a caller
 	/// executing the same instance again. Removing one slot then leaves the instance in another, and a
 	/// handler that disposed it would break the next Undo or Redo. So a command is reported only once no
-	/// slot holds it any more, and only once per operation, however many of its slots left.
+	/// slot holds it any more, and only once per operation, however many of its slots left. A composite
+	/// in the history holds its sub-commands too, so none of them is reported while it stays.
 	/// </remarks>
 	/// <param name="errors">Collects exceptions thrown by handlers</param>
 	/// <param name="commands">The commands removed from their slots</param>
@@ -116,7 +117,7 @@ public sealed class UndoRedoService(
 			return;
 		}
 
-		HashSet<ICommand> unavailable = new(_stackManager.Commands, ReferenceComparer.Instance);
+		HashSet<ICommand> unavailable = ReachableFromHistory();
 		if (reported is not null)
 		{
 			unavailable.UnionWith(reported);
@@ -129,6 +130,35 @@ public sealed class UndoRedoService(
 		{
 			errors.Raise(CommandsDiscarded, this, new CommandsDiscardedEventArgs(leaving, reason, _stackManager.CurrentPosition));
 		}
+	}
+
+	/// <summary>
+	/// Every command the history can still run: its top-level commands, and the sub-commands of any
+	/// composite among them, at any depth
+	/// </summary>
+	/// <remarks>
+	/// A command held by a composite in the history runs on that composite's next Undo or Redo, so it
+	/// is still in the history even though it fills no slot of its own.
+	/// </remarks>
+	private HashSet<ICommand> ReachableFromHistory()
+	{
+		HashSet<ICommand> reachable = new(ReferenceComparer.Instance);
+		Stack<ICommand> pending = new(_stackManager.Commands);
+		while (pending.Count > 0)
+		{
+			ICommand command = pending.Pop();
+
+			// Add() is false for a command already walked, so a composite met twice is walked once
+			if (reachable.Add(command) && command is CompositeCommand composite)
+			{
+				foreach (ICommand sub in composite.Commands)
+				{
+					pending.Push(sub);
+				}
+			}
+		}
+
+		return reachable;
 	}
 
 	/// <summary>
