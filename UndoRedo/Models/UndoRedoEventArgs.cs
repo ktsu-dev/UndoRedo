@@ -101,6 +101,13 @@ public enum CommandDiscardReason
 	/// The history was replaced by a restored or loaded one that does not contain these commands
 	/// </summary>
 	Replaced,
+
+	/// <summary>
+	/// A merge failed after the command it was merging into had been undone, and that command could not
+	/// be applied again, so it is no longer applied: either the merged command's Execute threw after a
+	/// MergeWith that merged in place, or applying the original again threw as well
+	/// </summary>
+	MergeFailed,
 }
 
 /// <summary>

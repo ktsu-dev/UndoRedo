@@ -968,9 +968,11 @@ public class UndoRedoStackTests
 		Assert.ThrowsExactly<InvalidOperationException>(() =>
 			stack.Execute(new MergeFailureCommand(v => value = v, "b")));
 
-		// The stack is still unchanged, so it describes the one command it recorded
-		Assert.AreEqual(1, stack.CommandCount, "A merge that failed to apply must not be recorded on the stack");
-		Assert.IsTrue(stack.CanUndo, "CanUndo should remain true after a failed merge");
+		// The first command was undone for the merge and could not be applied again, so it leaves the
+		// history rather than being recorded as applied while the document doesn't hold it
+		Assert.AreEqual("", value);
+		Assert.AreEqual(0, stack.CommandCount, "A command that is no longer applied must not stay on the stack");
+		Assert.IsFalse(stack.CanUndo, "There is nothing applied to undo");
 	}
 
 	[TestMethod]
