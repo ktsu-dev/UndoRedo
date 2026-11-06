@@ -172,9 +172,9 @@ public sealed class UndoRedoService(
 		if (_options.AutoMergeCommands && !_mergeChainBroken && _stackManager.CanUndo && !IsAtSaveBoundary(_stackManager.CurrentPosition))
 		{
 			ICommand? lastCommand = _stackManager.GetCurrentCommand();
-			if (lastCommand is not null and not IPlaceholderCommand && _commandMerger.CanMerge(lastCommand, command))
+			if (lastCommand is not null and not IPlaceholderCommand && _commandMerger.CanMerge(lastCommand, command)
+				&& TryExecuteMerged(lastCommand, command))
 			{
-				ExecuteMerged(lastCommand, command);
 				return;
 			}
 		}
@@ -214,18 +214,34 @@ public sealed class UndoRedoService(
 		errors.ThrowIfAny();
 	}
 
-	private void ExecuteMerged(ICommand lastCommand, ICommand command)
+	/// <summary>
+	/// Merges <paramref name="command"/> into <paramref name="lastCommand"/> and executes the result
+	/// </summary>
+	/// <returns>
+	/// False, having changed nothing, when <paramref name="lastCommand"/> can't be undone to merge into.
+	/// Merging is only an optimisation, so the caller then executes <paramref name="command"/> on its own.
+	/// </returns>
+	private bool TryExecuteMerged(ICommand lastCommand, ICommand command)
 	{
 		// Apply the real state change before touching the stack, so a failure here can never
 		// leave the stack recording a command that was not actually applied. This mirrors the
 		// non-merge path and CompositeCommand.Execute().
 		// Undo before merging: a MergeWith that merges in place and returns `this` changes what
 		// lastCommand would undo, so undoing afterwards would revert changes never applied.
-		// If this Undo throws, nothing has been mutated and the stack is still accurate.
-		lastCommand.Undo();
+#pragma warning disable CA1031 // Do not catch general exception types
+		try
+		{
+			lastCommand.Undo();
+		}
+		catch (Exception)
+		{
+			// Nothing has been mutated and the stack is still accurate, but the new edit must not be lost
+			// to the previous command's failure. Once it is executed on its own, lastCommand is no longer
+			// the current command, so the next edit can't retry this merge.
+			return false;
+		}
 
 		ICommand mergedCommand;
-#pragma warning disable CA1031 // Do not catch general exception types
 		try
 		{
 			mergedCommand = _commandMerger.Merge(lastCommand, command);
@@ -265,6 +281,7 @@ public sealed class UndoRedoService(
 		OnCommandsDiscarded(errors, merged, CommandDiscardReason.Merged, reported);
 		OnStateChanged(errors);
 		errors.ThrowIfAny();
+		return true;
 	}
 
 	/// <summary>
