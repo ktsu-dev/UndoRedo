@@ -272,9 +272,9 @@ public class JsonUndoRedoSerializer(JsonSerializerOptions? options = null) : IUn
 			// The parameterless constructor knows neither the navigation context nor the metadata
 			// the command was saved with, so put them back; otherwise undo and redo stop navigating
 			// after a reload, and the change size and timestamp revert to defaults.
-			if (instance is BaseCommand baseCommand)
+			if (instance is IRestorableCommandState restorable)
 			{
-				baseCommand.RestoreSerializedState(serializableCommand.NavigationContext, serializableCommand.Metadata);
+				restorable.RestoreSerializedState(serializableCommand.NavigationContext, serializableCommand.Metadata);
 			}
 
 			return (ICommand)instance!;
