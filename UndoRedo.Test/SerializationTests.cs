@@ -11,6 +11,52 @@ public class SerializationTests
 {
 	private static UndoRedoService CreateService() => new(new StackManager(), new SaveBoundaryManager(), new CommandMerger());
 
+	// The library's own options plus the strict switch newer .NET guidance recommends, which treats a constructor
+	// parameter without a default value as required (#188)
+	private static JsonSerializerOptions StrictOptions() => new()
+	{
+		PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+		DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+		RespectRequiredConstructorParameters = true,
+		Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() }
+	};
+
+	[TestMethod]
+	public async Task UndoRedoService_SaveLoadState_RequiredConstructorParameters_ReloadsSavePointWithoutDescription()
+	{
+		JsonUndoRedoSerializer serializer = new(StrictOptions());
+		UndoRedoService stack = CreateService();
+		stack.SetSerializer(serializer);
+		stack.Execute(new DelegateCommand("a", () => { }, () => { }));
+		stack.MarkAsSaved();
+		SaveBoundary saved = stack.SaveBoundaries[0];
+
+		byte[] data = await stack.SaveStateAsync().ConfigureAwait(false);
+		UndoRedoService reloaded = CreateService();
+		reloaded.SetSerializer(serializer);
+		bool success = await reloaded.LoadStateAsync(data).ConfigureAwait(false);
+
+		Assert.IsTrue(success, "A history with a description-less save point should reload under strict options");
+		Assert.AreEqual(1, reloaded.CommandCount);
+		Assert.HasCount(1, reloaded.SaveBoundaries);
+		Assert.AreEqual(saved.Position, reloaded.SaveBoundaries[0].Position);
+		Assert.IsNull(reloaded.SaveBoundaries[0].Description);
+		Assert.AreEqual(saved.Timestamp, reloaded.SaveBoundaries[0].Timestamp);
+		Assert.IsFalse(reloaded.HasUnsavedChanges, "The reloaded history should still be at its save point");
+	}
+
+	[TestMethod]
+	public void SaveBoundary_RequiredConstructorParameters_ReadsBoundaryWithOnlyPosition()
+	{
+		// A boundary written without a description, or before timestamps were recorded
+		SaveBoundary? boundary = JsonSerializer.Deserialize<SaveBoundary>("{\"position\":3}", StrictOptions());
+
+		Assert.IsNotNull(boundary);
+		Assert.AreEqual(3, boundary.Position);
+		Assert.IsNull(boundary.Description);
+		Assert.AreNotEqual(default, boundary.Timestamp, "A missing timestamp should read as the current time");
+	}
+
 	[TestMethod]
 	public async Task JsonSerializer_SerializeEmpty_ReturnsValidData()
 	{
