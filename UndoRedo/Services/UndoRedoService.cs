@@ -2,6 +2,7 @@
 
 namespace ktsu.UndoRedo.Core.Services;
 
+using System.Runtime.ExceptionServices;
 using System.Text.Json;
 using ktsu.UndoRedo.Contracts;
 using ktsu.UndoRedo.Models;
@@ -100,7 +101,8 @@ public sealed class UndoRedoService(
 	/// One command instance can fill more than one slot of the history, because nothing stops a caller
 	/// executing the same instance again. Removing one slot then leaves the instance in another, and a
 	/// handler that disposed it would break the next Undo or Redo. So a command is reported only once no
-	/// slot holds it any more, and only once per operation, however many of its slots left.
+	/// slot holds it any more, and only once per operation, however many of its slots left. A composite
+	/// in the history holds its sub-commands too, so none of them is reported while it stays.
 	/// </remarks>
 	/// <param name="errors">Collects exceptions thrown by handlers</param>
 	/// <param name="commands">The commands removed from their slots</param>
@@ -116,7 +118,7 @@ public sealed class UndoRedoService(
 			return;
 		}
 
-		HashSet<ICommand> unavailable = new(_stackManager.Commands, ReferenceComparer.Instance);
+		HashSet<ICommand> unavailable = ReachableFromHistory();
 		if (reported is not null)
 		{
 			unavailable.UnionWith(reported);
@@ -129,6 +131,35 @@ public sealed class UndoRedoService(
 		{
 			errors.Raise(CommandsDiscarded, this, new CommandsDiscardedEventArgs(leaving, reason, _stackManager.CurrentPosition));
 		}
+	}
+
+	/// <summary>
+	/// Every command the history can still run: its top-level commands, and the sub-commands of any
+	/// composite among them, at any depth
+	/// </summary>
+	/// <remarks>
+	/// A command held by a composite in the history runs on that composite's next Undo or Redo, so it
+	/// is still in the history even though it fills no slot of its own.
+	/// </remarks>
+	private HashSet<ICommand> ReachableFromHistory()
+	{
+		HashSet<ICommand> reachable = new(ReferenceComparer.Instance);
+		Stack<ICommand> pending = new(_stackManager.Commands);
+		while (pending.Count > 0)
+		{
+			ICommand command = pending.Pop();
+
+			// Add() is false for a command already walked, so a composite met twice is walked once
+			if (reachable.Add(command) && command is CompositeCommand composite)
+			{
+				foreach (ICommand sub in composite.Commands)
+				{
+					pending.Push(sub);
+				}
+			}
+		}
+
+		return reachable;
 	}
 
 	/// <summary>
@@ -172,9 +203,9 @@ public sealed class UndoRedoService(
 		if (_options.AutoMergeCommands && !_mergeChainBroken && _stackManager.CanUndo && !IsAtSaveBoundary(_stackManager.CurrentPosition))
 		{
 			ICommand? lastCommand = _stackManager.GetCurrentCommand();
-			if (lastCommand is not null and not IPlaceholderCommand && _commandMerger.CanMerge(lastCommand, command))
+			if (lastCommand is not null and not IPlaceholderCommand && _commandMerger.CanMerge(lastCommand, command)
+				&& TryExecuteMerged(lastCommand, command))
 			{
-				ExecuteMerged(lastCommand, command);
 				return;
 			}
 		}
@@ -214,18 +245,34 @@ public sealed class UndoRedoService(
 		errors.ThrowIfAny();
 	}
 
-	private void ExecuteMerged(ICommand lastCommand, ICommand command)
+	/// <summary>
+	/// Merges <paramref name="command"/> into <paramref name="lastCommand"/> and executes the result
+	/// </summary>
+	/// <returns>
+	/// False, having changed nothing, when <paramref name="lastCommand"/> can't be undone to merge into.
+	/// Merging is only an optimisation, so the caller then executes <paramref name="command"/> on its own.
+	/// </returns>
+	private bool TryExecuteMerged(ICommand lastCommand, ICommand command)
 	{
 		// Apply the real state change before touching the stack, so a failure here can never
 		// leave the stack recording a command that was not actually applied. This mirrors the
 		// non-merge path and CompositeCommand.Execute().
 		// Undo before merging: a MergeWith that merges in place and returns `this` changes what
 		// lastCommand would undo, so undoing afterwards would revert changes never applied.
-		// If this Undo throws, nothing has been mutated and the stack is still accurate.
-		lastCommand.Undo();
+#pragma warning disable CA1031 // Do not catch general exception types
+		try
+		{
+			lastCommand.Undo();
+		}
+		catch (Exception)
+		{
+			// Nothing has been mutated and the stack is still accurate, but the new edit must not be lost
+			// to the previous command's failure. Once it is executed on its own, lastCommand is no longer
+			// the current command, so the next edit can't retry this merge.
+			return false;
+		}
 
 		ICommand? mergedCommand = null;
-#pragma warning disable CA1031 // Do not catch general exception types
 		try
 		{
 			// Execute has already asked whether these merge, with lastCommand applied. The built-in merger
@@ -282,6 +329,7 @@ public sealed class UndoRedoService(
 		OnCommandsDiscarded(errors, merged, CommandDiscardReason.Merged, reported);
 		OnStateChanged(errors);
 		errors.ThrowIfAny();
+		return true;
 	}
 
 	/// <summary>
@@ -485,6 +533,7 @@ public sealed class UndoRedoService(
 		_mergeChainBroken = true;
 		HandlerErrors errors = new();
 		ICommand? lastCommand = null;
+		Exception? commandFailure = null;
 		try
 		{
 			foreach (ICommand command in path)
@@ -506,13 +555,24 @@ public sealed class UndoRedoService(
 				lastCommand = command;
 			}
 		}
-		finally
+#pragma warning disable CA1031 // Do not catch general exception types
+		catch (Exception ex)
 		{
-			// Once for the whole walk, including the commands moved past before one that failed
-			if (lastCommand != null)
-			{
-				OnStateChanged(errors);
-			}
+			// Thrown below, once StateChanged has run, together with what the handlers of the steps
+			// already taken threw, so a command failure can't hide a handler failure
+			commandFailure = ex;
+		}
+#pragma warning restore CA1031 // Do not catch general exception types
+
+		// Once for the whole walk, including the commands moved past before one that failed
+		if (lastCommand != null)
+		{
+			OnStateChanged(errors);
+		}
+
+		if (commandFailure != null)
+		{
+			errors.ThrowWithCommandFailure(commandFailure);
 		}
 
 		if (navigateToLastChange && lastCommand != null)
@@ -771,7 +831,27 @@ public sealed class UndoRedoService(
 			return false;
 		}
 
-		OnCommandsDiscarded(errors, replaced, CommandDiscardReason.Replaced);
+		// A history saved under a larger limit holds more than this service keeps. Trim it as Execute
+		// would, but only from the commands at or before the current position: those after it are the
+		// redo history the state chose to keep, and RemoveOldest only removes applied commands.
+		List<ICommand> dropped = [];
+		if (_options.MaxStackSize > 0 && _stackManager.Commands.Count > _options.MaxStackSize)
+		{
+			int drop = Math.Min(_stackManager.Commands.Count - _options.MaxStackSize, _stackManager.CurrentPosition + 1);
+			if (drop > 0)
+			{
+				dropped = RemoveOldest(drop);
+			}
+		}
+
+		HashSet<ICommand> reported = new(ReferenceComparer.Instance);
+		OnCommandsDiscarded(errors, replaced, CommandDiscardReason.Replaced, reported);
+		if (dropped.Count > 0)
+		{
+			errors.Raise(CommandsDropped, this, new CommandsDroppedEventArgs(dropped, _stackManager.CurrentPosition));
+			OnCommandsDiscarded(errors, dropped, CommandDiscardReason.Trimmed, reported);
+		}
+
 		OnStateChanged(errors);
 		errors.ThrowIfAny();
 		return true;
@@ -792,6 +872,8 @@ public sealed class UndoRedoService(
 	/// </summary>
 	private sealed class HandlerErrors
 	{
+		private const string CommandAndHandlersFailedMessage = "A command failed partway through the operation, and one or more event handlers of the steps before it threw.";
+
 		private List<Exception>? _exceptions;
 
 		public void Raise<TEventArgs>(EventHandler<TEventArgs>? handler, object sender, TEventArgs args)
@@ -829,6 +911,22 @@ public sealed class UndoRedoService(
 			{
 				throw new UndoRedoHandlerException(_exceptions);
 			}
+		}
+
+		/// <summary>
+		/// Rethrows a command's failure unchanged when no handler threw, or throws an
+		/// <see cref="AggregateException"/> holding the command's failure first and then what each failing
+		/// handler threw
+		/// </summary>
+		/// <param name="commandFailure">What the command threw</param>
+		public void ThrowWithCommandFailure(Exception commandFailure)
+		{
+			if (_exceptions != null)
+			{
+				throw new AggregateException(CommandAndHandlersFailedMessage, _exceptions.Prepend(commandFailure));
+			}
+
+			ExceptionDispatchInfo.Capture(commandFailure).Throw();
 		}
 
 		private void Invoke(Action handler)

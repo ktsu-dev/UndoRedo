@@ -196,9 +196,17 @@ public interface IUndoRedoService
 	/// back past it, so the history lands on the saved state either way
 	/// </summary>
 	/// <remarks>
+	/// <para>
 	/// Returns <see langword="false"/> without changing anything when the boundary is no longer in the
 	/// history, when the current position is already on it, or when an <see cref="IPlaceholderCommand"/> lies
 	/// between here and there. <see cref="CommandUndone"/> or <see cref="CommandRedone"/> is raised for each step.
+	/// </para>
+	/// <para>
+	/// When a command throws partway through, the walk stops with the position where that command left it,
+	/// and <see cref="StateChanged"/> is still raised once for the steps already taken. The command's exception
+	/// is rethrown unchanged when no event handler threw. When one did, an <see cref="AggregateException"/> is
+	/// thrown instead, holding the command's exception first and then what each failing handler threw.
+	/// </para>
 	/// </remarks>
 	/// <param name="saveBoundary">The target save boundary</param>
 	/// <param name="navigateToLastChange">Whether to navigate to the last change</param>
@@ -252,6 +260,12 @@ public interface IUndoRedoService
 	/// <summary>
 	/// Restores the stack from a given state
 	/// </summary>
+	/// <remarks>
+	/// A state holding more commands than <see cref="UndoRedoOptions.MaxStackSize"/> is trimmed to it
+	/// from the oldest end, as <see cref="Execute"/> would trim, and the trimmed commands are reported
+	/// through <see cref="CommandsDropped"/> and <see cref="CommandsDiscarded"/>. Only commands at or
+	/// before the restored position are trimmed, so the redo history is always kept whole.
+	/// </remarks>
 	/// <param name="state">The state to restore</param>
 	/// <returns>True if restoration was successful</returns>
 	public bool RestoreFromState(UndoRedoStackState state);
