@@ -2,6 +2,7 @@
 
 Changes since v3.4.0:
 
+- Ask CanMergeWith once, and drop a merged-into command a failed merge leaves unapplied [minor] (#176) (matt-edmondson)
 - Report handler failures when a command fails partway through a revert [patch] (#179) (matt-edmondson)
 - Keep a command a composite in the history holds out of CommandsDiscarded [patch] (#181) (matt-edmondson)
 - Apply a mergeable edit on its own when the previous command can't be undone to merge [patch] (#182) (matt-edmondson)
