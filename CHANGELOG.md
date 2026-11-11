@@ -2,6 +2,9 @@
 
 Changes since v3.4.0:
 
+- Report handler failures when a command fails partway through a revert [patch] (#179) (matt-edmondson)
+- Keep a command a composite in the history holds out of CommandsDiscarded [patch] (#181) (matt-edmondson)
+- Apply a mergeable edit on its own when the previous command can't be undone to merge [patch] (#182) (matt-edmondson)
 - Trim a restored history to MaxStackSize [patch] (Claude)
 - Report a re-executed command only once it has left the history [patch] (#171) (matt-edmondson)
 - Add a SessionStart hook for Claude Code cloud sessions (#156) (matt-edmondson)
