@@ -18,6 +18,11 @@ public interface ICommandMerger
 	/// <summary>
 	/// Merges two compatible commands into one
 	/// </summary>
+	/// <remarks>
+	/// The service calls <see cref="CanMerge"/> with <paramref name="first"/> applied, then calls this
+	/// with <paramref name="first"/> undone, so an implementation that checks again can see a different
+	/// document.
+	/// </remarks>
 	/// <param name="first">The first command</param>
 	/// <param name="second">The second command</param>
 	/// <returns>A new merged command</returns>

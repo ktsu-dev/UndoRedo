@@ -272,22 +272,39 @@ public sealed class UndoRedoService(
 			return false;
 		}
 
-		ICommand mergedCommand;
+		ICommand? mergedCommand = null;
 		try
 		{
-			mergedCommand = _commandMerger.Merge(lastCommand, command);
+			// Execute has already asked whether these merge, with lastCommand applied. The built-in merger
+			// would ask again, now with lastCommand undone, and a CanMergeWith that reads the document can
+			// answer differently, so it is skipped and MergeWith called directly.
+			mergedCommand = _commandMerger is CommandMerger
+				? lastCommand.MergeWith(command)
+				: _commandMerger.Merge(lastCommand, command);
 			mergedCommand.Execute();
 		}
 		catch (Exception)
 		{
-			// The merged edit failed, so put the application back where the stack says it is
-			try
+			// The merged edit failed, so put the application back where the stack says it is. That is only
+			// possible while lastCommand is still the original edit: a MergeWith that merged in place and
+			// returned it has already changed what it applies.
+			bool restored = false;
+			if (!ReferenceEquals(mergedCommand, lastCommand))
 			{
-				lastCommand.Execute();
+				try
+				{
+					lastCommand.Execute();
+					restored = true;
+				}
+				catch (Exception)
+				{
+					// Handled below: lastCommand is not applied, so it leaves the history
+				}
 			}
-			catch (Exception)
+
+			if (!restored)
 			{
-				// Continue unwinding even if the restore fails
+				RemoveUnappliedCurrent(lastCommand);
 			}
 
 			throw; // Re-throw the original exception
@@ -313,6 +330,27 @@ public sealed class UndoRedoService(
 		OnStateChanged(errors);
 		errors.ThrowIfAny();
 		return true;
+	}
+
+	/// <summary>
+	/// Removes the current command after a failed merge left it undone and unable to be applied again,
+	/// so the history describes what the application holds
+	/// </summary>
+	/// <remarks>
+	/// Handler exceptions are not rethrown: the caller is already getting the exception that made the
+	/// merge fail, which is the one it needs.
+	/// </remarks>
+	private void RemoveUnappliedCurrent(ICommand lastCommand)
+	{
+		List<ICommand> leaving = [lastCommand, .. RedoTail()];
+		_stackManager.MovePrevious();
+		_stackManager.ClearForward();
+		_saveBoundaryManager.CleanupInvalidBoundaries(_stackManager.CurrentPosition);
+		_mergeChainBroken = true;
+
+		HandlerErrors errors = new();
+		OnCommandsDiscarded(errors, leaving, CommandDiscardReason.MergeFailed);
+		OnStateChanged(errors);
 	}
 
 	/// <summary>
