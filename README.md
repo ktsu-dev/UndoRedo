@@ -300,6 +300,11 @@ Every handler runs even when one throws, and the operation finishes first. Any e
 thrown together as an `UndoRedoHandlerException`, which means the command *was* executed, undone or
 redone. Don't retry the operation when you catch one.
 
+`UndoToSaveBoundaryAsync` steps through several commands, so a command can fail after handlers for the
+earlier steps have already thrown. The command's exception is then thrown as the first entry of an
+`AggregateException`, followed by the handler exceptions. When no handler threw, the command's
+exception is thrown unchanged.
+
 ## Integration Examples
 
 ### Text Editor Integration
