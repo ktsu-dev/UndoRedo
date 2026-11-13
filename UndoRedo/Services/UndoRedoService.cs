@@ -500,9 +500,14 @@ public sealed class UndoRedoService(
 		Ensure.NotNull(saveBoundary);
 
 		SaveBoundary? liveBoundary = FindLiveSaveBoundary(saveBoundary);
-		return liveBoundary == null
-			? []
-			: _saveBoundaryManager.GetCommandsToUndo(liveBoundary, _stackManager.CurrentPosition, _stackManager.Commands);
+		if (liveBoundary == null)
+		{
+			return [];
+		}
+
+		// UndoToSaveBoundaryAsync refuses a path with a placeholder on it, so none of these would be undone
+		List<ICommand> commands = [.. _saveBoundaryManager.GetCommandsToUndo(liveBoundary, _stackManager.CurrentPosition, _stackManager.Commands)];
+		return commands.Any(command => command is IPlaceholderCommand) ? [] : commands;
 	}
 
 	/// <inheritdoc />

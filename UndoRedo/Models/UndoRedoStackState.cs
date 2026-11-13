@@ -64,15 +64,19 @@ public record UndoRedoStackState(
 	/// </summary>
 	/// <remarks>
 	/// <see cref="CurrentPosition"/> indexes the command that has been applied, so position 0 means
-	/// one command is applied and can be undone. This matches <c>IStackManager.CanUndo</c>, which
-	/// <c>IUndoRedoService.CanUndo</c> reflects.
+	/// one command is applied and can be undone. Like <c>IUndoRedoService.CanUndo</c>, this is
+	/// <see langword="false"/> while that command is an <see cref="IPlaceholderCommand"/>, which can't be undone.
 	/// </remarks>
-	public bool CanUndo => CurrentPosition >= 0;
+	public bool CanUndo => CurrentPosition >= 0 && CurrentPosition < Commands.Count && Commands[CurrentPosition] is not IPlaceholderCommand;
 
 	/// <summary>
 	/// Gets whether there are commands that can be redone
 	/// </summary>
-	public bool CanRedo => CurrentPosition < Commands.Count - 1;
+	/// <remarks>
+	/// Like <c>IUndoRedoService.CanRedo</c>, this is <see langword="false"/> while the next command is an
+	/// <see cref="IPlaceholderCommand"/>, which can't be redone.
+	/// </remarks>
+	public bool CanRedo => CurrentPosition + 1 >= 0 && CurrentPosition + 1 < Commands.Count && Commands[CurrentPosition + 1] is not IPlaceholderCommand;
 
 	/// <summary>
 	/// Gets the total number of commands in the stack

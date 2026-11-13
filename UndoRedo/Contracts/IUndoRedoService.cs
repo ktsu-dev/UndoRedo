@@ -185,7 +185,8 @@ public interface IUndoRedoService
 	/// </summary>
 	/// <remarks>
 	/// Empty when the boundary is at or after the current position, where
-	/// <see cref="UndoToSaveBoundaryAsync"/> redoes rather than undoes.
+	/// <see cref="UndoToSaveBoundaryAsync"/> redoes rather than undoes, and when an
+	/// <see cref="IPlaceholderCommand"/> lies between the two, where it does nothing.
 	/// </remarks>
 	/// <param name="saveBoundary">The target save boundary</param>
 	/// <returns>Commands that would be undone</returns>
