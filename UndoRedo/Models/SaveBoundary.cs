@@ -20,8 +20,26 @@ public sealed class SaveBoundary(int position, string? description = null)
 	/// When the save boundary was created, or <see langword="default"/> to use the current time, which is
 	/// also what saved data without a timestamp deserializes to
 	/// </param>
+#if NET6_0 || NET7_0
+	// The inbox System.Text.Json on these targets honours only a public JsonConstructor, and has no
+	// RespectRequiredConstructorParameters option to make the missing defaults matter
 	[JsonConstructor]
+#endif
 	public SaveBoundary(int position, string? description, DateTimeOffset timestamp)
+		: this(position, timestamp, description)
+	{
+	}
+
+	/// <summary>
+	/// Reads a save boundary back from JSON. Every parameter but the position has a default, so a boundary
+	/// written without a description (the serializer skips nulls) or without a timestamp still loads when
+	/// RespectRequiredConstructorParameters is on, which treats a parameter with no default as required. Private,
+	/// with the parameters in a different order, so it never competes with the public constructors at a call site
+	/// </summary>
+#if !(NET6_0 || NET7_0)
+	[JsonConstructor]
+#endif
+	private SaveBoundary(int position, DateTimeOffset timestamp = default, string? description = null)
 		: this(position, description)
 	{
 		if (timestamp != default)
