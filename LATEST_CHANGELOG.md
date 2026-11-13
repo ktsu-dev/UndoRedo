@@ -2,6 +2,10 @@
 
 Changes since v3.4.0:
 
+- Reload a description-less save point under RespectRequiredConstructorParameters [patch] (#189) (matt-edmondson)
+- Report a dropped command only once it has left the history [patch] (#190) (matt-edmondson)
+- Restore navigation context and metadata on commands that implement ICommand directly [minor] (#191) (matt-edmondson)
+- Report placeholders in the state snapshot's CanUndo/CanRedo and in GetCommandsToUndo [patch] (#194) (matt-edmondson)
 - Ask CanMergeWith once, and drop a merged-into command a failed merge leaves unapplied [minor] (#176) (matt-edmondson)
 - Report handler failures when a command fails partway through a revert [patch] (#179) (matt-edmondson)
 - Keep a command a composite in the history holds out of CommandsDiscarded [patch] (#181) (matt-edmondson)
