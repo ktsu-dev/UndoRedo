@@ -61,9 +61,14 @@ public sealed class SaveBoundaryCreatedEventArgs(SaveBoundary saveBoundary) : Ev
 public sealed class CommandsDroppedEventArgs(IReadOnlyList<ICommand> commands, int position) : EventArgs
 {
 	/// <summary>
-	/// The dropped commands, oldest first. They can no longer be undone or redone, so anything they
-	/// held only for undo can be released.
+	/// The dropped commands, oldest first, each listed once. They can no longer be undone or redone, so
+	/// anything they held only for undo can be released.
 	/// </summary>
+	/// <remarks>
+	/// A command instance executed more than once fills more than one slot. It is listed only once the
+	/// last slot holding it, directly or inside a composite, has gone, so this can be empty when every
+	/// dropped slot held an instance that is still in the history.
+	/// </remarks>
 	public IReadOnlyList<ICommand> Commands { get; } = commands;
 
 	/// <summary>

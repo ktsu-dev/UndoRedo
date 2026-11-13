@@ -274,7 +274,9 @@ int dropped = undoRedoStack.DropOldest(10);
 Only commands at or before the current position are dropped, so a redoable step is never lost.
 Save boundaries move down with the history: a save on the last dropped step lands on position -1,
 the state the history now starts from, and saves on earlier steps are removed because they can no
-longer be reached. `CommandsDropped` also fires when `MaxStackSize` trims the history.
+longer be reached. `CommandsDropped` also fires when `MaxStackSize` trims the history. It lists a
+command instance only once no remaining slot holds it, so a command executed again is never reported
+while it can still be undone.
 
 ### Releasing what commands hold
 

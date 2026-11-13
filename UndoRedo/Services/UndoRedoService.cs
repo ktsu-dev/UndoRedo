@@ -134,6 +134,26 @@ public sealed class UndoRedoService(
 	}
 
 	/// <summary>
+	/// Raises <see cref="CommandsDropped"/> for the trim that removed <paramref name="dropped"/>, listing
+	/// each instance once and only those no longer in the history
+	/// </summary>
+	/// <remarks>
+	/// The event is raised for every trim, since the history and positions have changed, but an instance
+	/// that still fills a newer slot, or sits inside a composite that does, is left out: a handler releasing
+	/// what it is given would otherwise break the next Undo or Redo. This is the same rule
+	/// <see cref="OnCommandsDiscarded"/> applies.
+	/// </remarks>
+	/// <param name="errors">Collects exceptions thrown by handlers</param>
+	/// <param name="dropped">The commands removed from their slots, oldest first</param>
+	private void OnCommandsDropped(HandlerErrors errors, List<ICommand> dropped)
+	{
+		// Add() is false for a command still in the history or met earlier in this list
+		HashSet<ICommand> unavailable = ReachableFromHistory();
+		List<ICommand> leaving = [.. dropped.Where(unavailable.Add)];
+		errors.Raise(CommandsDropped, this, new CommandsDroppedEventArgs(leaving, _stackManager.CurrentPosition));
+	}
+
+	/// <summary>
 	/// Every command the history can still run: its top-level commands, and the sub-commands of any
 	/// composite among them, at any depth
 	/// </summary>
@@ -237,7 +257,7 @@ public sealed class UndoRedoService(
 		OnCommandsDiscarded(errors, branched, CommandDiscardReason.Branched, reported);
 		if (dropped.Count > 0)
 		{
-			errors.Raise(CommandsDropped, this, new CommandsDroppedEventArgs(dropped, _stackManager.CurrentPosition));
+			OnCommandsDropped(errors, dropped);
 			OnCommandsDiscarded(errors, dropped, CommandDiscardReason.Trimmed, reported);
 		}
 
@@ -377,7 +397,7 @@ public sealed class UndoRedoService(
 
 		List<ICommand> dropped = RemoveOldest(drop);
 		HandlerErrors errors = new();
-		errors.Raise(CommandsDropped, this, new CommandsDroppedEventArgs(dropped, _stackManager.CurrentPosition));
+		OnCommandsDropped(errors, dropped);
 		OnCommandsDiscarded(errors, dropped, CommandDiscardReason.Trimmed);
 		OnStateChanged(errors);
 		errors.ThrowIfAny();
@@ -853,7 +873,7 @@ public sealed class UndoRedoService(
 		OnCommandsDiscarded(errors, replaced, CommandDiscardReason.Replaced, reported);
 		if (dropped.Count > 0)
 		{
-			errors.Raise(CommandsDropped, this, new CommandsDroppedEventArgs(dropped, _stackManager.CurrentPosition));
+			OnCommandsDropped(errors, dropped);
 			OnCommandsDiscarded(errors, dropped, CommandDiscardReason.Trimmed, reported);
 		}
 
