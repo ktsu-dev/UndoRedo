@@ -253,6 +253,61 @@ public class SerializationTests
 	}
 
 	[TestMethod]
+	public async Task UndoRedoService_GetCurrentState_CanUndoAndCanRedoMatchService_AfterReloadingPlaceholders()
+	{
+		// Arrange: two DelegateCommands reload as placeholders, one applied and one ahead
+		UndoRedoService original = CreateService();
+		original.SetSerializer(new JsonUndoRedoSerializer());
+		original.Execute(new DelegateCommand("Type a", () => { }, () => { }));
+		original.Execute(new DelegateCommand("Type b", () => { }, () => { }));
+		await original.UndoAsync().ConfigureAwait(false);
+		byte[] saved = await original.SaveStateAsync().ConfigureAwait(false);
+
+		UndoRedoService reloaded = CreateService();
+		reloaded.SetSerializer(new JsonUndoRedoSerializer());
+		Assert.IsTrue(await reloaded.LoadStateAsync(saved).ConfigureAwait(false));
+
+		// Act
+		UndoRedoStackState state = reloaded.GetCurrentState();
+
+		// Assert
+		Assert.IsFalse(reloaded.CanUndo, "A placeholder can't be undone");
+		Assert.IsFalse(reloaded.CanRedo, "A placeholder can't be redone");
+		Assert.AreEqual(reloaded.CanUndo, state.CanUndo, "State.CanUndo must agree with the service when the current command is a placeholder");
+		Assert.AreEqual(reloaded.CanRedo, state.CanRedo, "State.CanRedo must agree with the service when the next command is a placeholder");
+
+		UndoRedoStackState deserialized = await new JsonUndoRedoSerializer().DeserializeAsync(saved).ConfigureAwait(false);
+		Assert.IsFalse(deserialized.CanUndo, "A deserialized state whose current command is a placeholder can't undo");
+		Assert.IsFalse(deserialized.CanRedo, "A deserialized state whose next command is a placeholder can't redo");
+	}
+
+	[TestMethod]
+	public async Task UndoRedoService_GetCommandsToUndo_IsEmpty_WhenAPlaceholderLiesBeforeTheBoundary()
+	{
+		// Arrange: [a] save [b c], reloaded so every command is a placeholder
+		UndoRedoService original = CreateService();
+		original.SetSerializer(new JsonUndoRedoSerializer());
+		original.Execute(new DelegateCommand("Type a", () => { }, () => { }));
+		original.MarkAsSaved("Save point");
+		original.Execute(new DelegateCommand("Type b", () => { }, () => { }));
+		original.Execute(new DelegateCommand("Type c", () => { }, () => { }));
+		byte[] saved = await original.SaveStateAsync().ConfigureAwait(false);
+
+		UndoRedoService reloaded = CreateService();
+		reloaded.SetSerializer(new JsonUndoRedoSerializer());
+		Assert.IsTrue(await reloaded.LoadStateAsync(saved).ConfigureAwait(false));
+		SaveBoundary boundary = reloaded.SaveBoundaries.Single();
+
+		// Act
+		List<ICommand> toUndo = [.. reloaded.GetCommandsToUndo(boundary)];
+		bool moved = await reloaded.UndoToSaveBoundaryAsync(boundary).ConfigureAwait(false);
+
+		// Assert
+		Assert.IsFalse(moved, "UndoToSaveBoundaryAsync can't step through placeholders");
+		Assert.IsEmpty(toUndo, "GetCommandsToUndo must not preview commands UndoToSaveBoundaryAsync won't undo");
+	}
+
+	[TestMethod]
 	public void UndoRedoStackState_CreateEmpty_CanUndoMatchesAFreshService()
 	{
 		// Arrange
