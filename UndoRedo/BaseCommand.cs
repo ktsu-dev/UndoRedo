@@ -15,7 +15,7 @@ public abstract class BaseCommand(
 	IReadOnlyList<string> affectedItems,
 	string? navigationContext = null,
 	int size = 1,
-	IReadOnlyDictionary<string, object>? customData = null) : ICommand
+	IReadOnlyDictionary<string, object>? customData = null) : ICommand, Core.Services.IRestorableCommandState
 {
 	/// <inheritdoc />
 	public abstract string Description { get; }
@@ -45,9 +45,13 @@ public abstract class BaseCommand(
 	/// </summary>
 	/// <param name="navigationContext">The navigation context the command was saved with</param>
 	/// <param name="metadata">The metadata the command was saved with</param>
-	internal void RestoreSerializedState(string? navigationContext, ChangeMetadata metadata)
+	protected internal void RestoreSerializedState(string? navigationContext, ChangeMetadata metadata)
 	{
 		NavigationContext = navigationContext;
 		Metadata = metadata;
 	}
+
+	/// <inheritdoc />
+	void Core.Services.IRestorableCommandState.RestoreSerializedState(string? navigationContext, ChangeMetadata metadata) =>
+		RestoreSerializedState(navigationContext, metadata);
 }

@@ -280,6 +280,30 @@ public class TextEditCommand : BaseCommand, ISerializableCommand
 }
 ```
 
+#### Navigation context and metadata
+
+A reloaded command is built with its parameterless constructor, so it doesn't know the navigation
+context and metadata it was saved with. `JsonUndoRedoSerializer` puts them back on any command that
+implements `IRestorableCommandState`. `BaseCommand` already implements it. A command that implements
+`ICommand` directly should implement it too. Otherwise it reloads with no navigation context and with
+default metadata, so undo stops navigating to the change:
+
+```csharp
+public sealed class SetValueCommand : ICommand, ISerializableCommand, IRestorableCommandState
+{
+    public string? NavigationContext { get; private set; }
+    public ChangeMetadata Metadata { get; private set; } = new(ChangeType.Modify, [], DateTimeOffset.Now);
+
+    // ... Description, Execute, Undo, CanMergeWith, MergeWith, SerializeData, DeserializeData
+
+    public void RestoreSerializedState(string? navigationContext, ChangeMetadata metadata)
+    {
+        NavigationContext = navigationContext;
+        Metadata = metadata;
+    }
+}
+```
+
 ### Handling Non-Serializable Commands
 
 Some commands may not be serializable. The library handles this gracefully:
